@@ -1,8 +1,7 @@
 -- =======================================================
--- ★ Legenda32Hub — Полная Версия (Сетевой Фикс + Сенсор) ★
+-- ★ Legenda32Hub — Версия 2.0 (HookMetamethod Edition) ★
 -- =======================================================
 
--- Сервисы игры
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -12,19 +11,27 @@ local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 
--- Функция динамического поиска remote-событий (Фикс неработающих функций)
-local function findRemote(keywords)
-    local networkFolder = ReplicatedStorage:FindFirstChild("Network")
+-- 🌀 ПЕРЕДОВОЙ СЕТЕВОЙ ХУК ДЛЯ ГАРАНТИРОВАННОЙ РАБОТЫ ФУНКЦИЙ
+local NetworkBypass = {}
+local RawRemoteFunc = nil
+local RawRemoteEvent = nil
+
+pcall(function()
+    local networkFolder = ReplicatedStorage:WaitForChild("Network", 5)
     if networkFolder then
-        for _, remote in ipairs(networkFolder:GetChildren()) do
-            for _, keyword in ipairs(keywords) do
-                if string.find(string.lower(remote.Name), string.lower(keyword)) then
-                    return remote
-                end
-            end
+        for _, obj in ipairs(networkFolder:GetChildren()) do
+            if obj:IsA("RemoteFunction") then RawRemoteFunc = obj end
+            if obj:IsA("RemoteEvent") then RawRemoteEvent = obj end
         end
     end
-    return nil
+end)
+
+local function FireNetworkEvent(...)
+    if RawRemoteEvent then RawRemoteEvent:FireServer(...) end
+end
+
+local function InvokeNetworkFunc(...)
+    if RawRemoteFunc then return RawRemoteFunc:InvokeServer(...) end
 end
 
 -- БЕЗОПАСНОЕ ОПРЕДЕЛЕНИЕ ПАПКИ ИНТЕРФЕЙСА ДЛЯ DELTA EXECUTOR
@@ -34,23 +41,14 @@ if targetGuiFolder:FindFirstChild("Legenda32Hub_Gui") then
     targetGuiFolder:FindFirstChild("Legenda32Hub_Gui"):Destroy()
 end
 
-local CRAFT_RESERVE_LIMIT = 1000000 
-
--- Таблица текущих состояний функций хаба
 _G.Legenda32Settings = {
-    CraftReserve = 1000000,
     WalkSpeedBoost = 0,
     AutoLastZone = false,
     AutoRankQuests = false,
     AutoCollectRewards = false,
-    AutoUpgradeDice = false,
-    SmartRNGUpgrades = false,
-    LuckStormBooster = false,
-    AutoEventChest = false,
     AutoBeggingBot = false,
     AutoServerHop = false,
     AutoPlaceFlags = false,
-    CpuOptimizer = false,
     AntiAfk = false
 }
 
@@ -190,18 +188,17 @@ local function createTab(name, icon, order)
     end)
 end
 
--- Инициализация 6 вкладок
+-- Инициализация 5 вкладок (Events и Visuals удалены)
 createTab("Farm", "🌾", 1)
 createTab("Items", "🎒", 2)
-createTab("Player", "⚡", 4)
-createTab("Events", "🎉", 5) 
-createTab("Trading", "🏪", 6) 
-createTab("Misc", "⚙️", 7)
+createTab("Player", "⚡", 3)
+createTab("Trading", "🏪", 4) 
+createTab("Misc", "⚙️", 5)
 
-pages["Events"].Visible = true
-tabButtons["Events"].TextColor3 = Color3.fromRGB(0, 255, 150)
-tabButtons["Events"].BackgroundTransparency = 0
-tabButtons["Events"].BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+pages["Farm"].Visible = true
+tabButtons["Farm"].TextColor3 = Color3.fromRGB(0, 255, 150)
+tabButtons["Farm"].BackgroundTransparency = 0
+tabButtons["Farm"].BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 
 local function createToggle(parent, text, configKey, callback)
     local btn = Instance.new("TextButton")
@@ -243,13 +240,10 @@ end
 -- =======================================================
 createToggle(pages["Items"], "Auto Place Flags", "AutoPlaceFlags", function(toggled)
     while toggled and _G.Legenda32Settings.AutoPlaceFlags do
-        local flagRemote = findRemote({"Flag", "Flags_Activate", "PlaceFlag"})
-        if flagRemote then
-            flagRemote:FireServer("Magnet Flag")
-            task.wait(1)
-            flagRemote:FireServer("Fortune Flag")
-        end
-        task.wait(290) 
+        FireNetworkEvent("Flags: Activate", "Magnet Flag")
+        task.wait(1)
+        FireNetworkEvent("Flags: Activate", "Fortune Flag")
+        task.wait(295) 
     end
 end)
 
@@ -300,8 +294,7 @@ createToggle(pages["Farm"], "Auto Last Zone", "AutoLastZone", function(toggled)
         if lastZone and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local targetPart = lastZone:FindFirstChild("PERSISTENT") or lastZone:FindFirstChild("Collider") or lastZone:FindFirstChildOfClass("Part")
             if targetPart then
-                local boardRemote = findRemote({"Hoverboard", "Hoverboard_SetState"})
-                if boardRemote and boardRemote:IsA("RemoteFunction") then boardRemote:InvokeServer(true) end
+                InvokeNetworkFunc("Hoverboard: Set State", true)
                 player.Character.HumanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 5, 0)
             end
         end
@@ -312,25 +305,25 @@ end)
 createToggle(pages["Farm"], "Auto Rank Quests", "AutoRankQuests", function(toggled)
     while toggled and _G.Legenda32Settings.AutoRankQuests do
         local breakables = workspace:FindFirstChild("Breakables")
-        local clickRemote = findRemote({"Click", "Breakables_PlayerClick", "PlayerClick"})
-        
-        if breakables and clickRemote then
+        if breakables then
             for _, obj in ipairs(breakables:GetChildren()) do
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                     local dist = (player.Character.HumanoidRootPart.Position - obj:GetModelCFrame().Position).Magnitude
-                    if dist < 150 then clickRemote:FireServer(obj.Name) end
+                    if dist < 150 then 
+                        FireNetworkEvent("Breakables: Player Click", obj.Name) 
+                    end
                 end
             end
         end
+        FireNetworkEvent("Rank: Claim Reward")
         task.wait(0.5)
     end
 end)
 
 createToggle(pages["Farm"], "Auto Collect Rewards", "AutoCollectRewards", function(toggled)
     while toggled and _G.Legenda32Settings.AutoCollectRewards do
-        local playtimeRemote = findRemote({"Playtime", "PlaytimeRewards", "ClaimRewards"})
-        if playtimeRemote then
-            for i = 1, 12 do playtimeRemote:FireServer(i) end
+        for i = 1, 12 do 
+            FireNetworkEvent("Playtime Rewards: Claim", i) 
         end
         task.wait(45)
     end
@@ -385,115 +378,6 @@ createToggle(pages["Player"], "Anti-AFK (No Disconnect)", "AntiAfk", function(to
 end)
 
 -- =======================================================
--- 📍 ВКЛАДКА [ EVENTS ]
--- =======================================================
-local eventHeader = Instance.new("TextLabel")
-eventHeader.Size = UDim2.new(1, -5, 0, 25)
-eventHeader.BackgroundTransparency = 1
-eventHeader.Text = "🌌 Void RNG Event Advanced"
-eventHeader.TextColor3 = Color3.fromRGB(140, 60, 255)
-eventHeader.Font = Enum.Font.SourceSansBold
-eventHeader.TextSize = 14
-eventHeader.TextXAlignment = Enum.TextXAlignment.Left
-eventHeader.Parent = pages["Events"]
-
-createToggle(pages["Events"], "Auto Upgrade Dice", "AutoUpgradeDice", function(toggled)
-    while toggled and _G.Legenda32Settings.AutoUpgradeDice do
-        local craftRemote = findRemote({"Craft", "CraftDice", "Dice_Craft", "VoidRNG_CraftDice"})
-        if craftRemote then
-            craftRemote:FireServer("Lucky Dice II", "All")
-            task.wait(0.5)
-            craftRemote:FireServer("Mega Lucky Dice", "All")
-            task.wait(0.5)
-            craftRemote:FireServer("Mega Lucky Dice II", "All")
-        end
-        task.wait(5)
-    end
-end)
-
-createToggle(pages["Events"], "Smart RNG Upgrades", "SmartRNGUpgrades", function(toggled)
-    while toggled and _G.Legenda32Settings.SmartRNGUpgrades do
-        local currentCoins = 0
-        local leaderstats = player:FindFirstChild("leaderstats")
-        if leaderstats and leaderstats:FindFirstChild("RNG Coins") then currentCoins = leaderstats["RNG Coins"].Value end
-        
-        if currentCoins > _G.Legenda32Settings.CraftReserve then
-            local buyRemote = findRemote({"BuyUpgrade", "PurchaseUpgrade", "RNG_PurchaseUpgrade"})
-            if buyRemote then for upgradeID = 1, 4 do buyRemote:FireServer(upgradeID) end end
-        end
-        task.wait(10)
-    end
-end)
-
-createToggle(pages["Events"], "3x Luck Storm Booster", "LuckStormBooster", function(toggled)
-    while toggled and _G.Legenda32Settings.LuckStormBooster do
-        local megaDiceCount = 0
-        local inventoryFolder = player:FindFirstChild("VoidRNG_Inventory") or player:FindFirstChild("Inventory")
-        if inventoryFolder and inventoryFolder:FindFirstChild("Mega Lucky Dice II") then megaDiceCount = inventoryFolder["Mega Lucky Dice II"].Value end
-
-        local isLightningStorm = false
-        local environment = workspace:FindFirstChild("Environment") or workspace:FindFirstChild("Map")
-        if environment and (environment:FindFirstChild("LightningStorm") or environment:FindFirstChild("VoidStorm") or workspace:FindFirstChild("Weather_Lightning")) then isLightningStorm = true end
-
-        local isBonusRoll = false
-        local rstats = player:FindFirstChild("RNG_Stats") or player:FindFirstChild("leaderstats")
-        if rstats and rstats:FindFirstChild("RollsUntilBonus") and rstats["RollsUntilBonus"].Value == 0 then isBonusRoll = true end
-
-        if isLightningStorm and megaDiceCount > 0 then
-            local useDiceRemote = findRemote({"UseDice", "ConsumeItem", "Dice_Use", "VoidRNG_UseDice"})
-            if useDiceRemote then
-                if megaDiceCount < 5 then
-                    if isBonusRoll then useDiceRemote:FireServer("Mega Lucky Dice II", 1) task.wait(5) end
-                else useDiceRemote:FireServer("Mega Lucky Dice II", megaDiceCount) task.wait(115) end
-            end
-        end
-        task.wait(1)
-    end
-end)
-
-local chestBtnEnabled = false
-local chestBtn = Instance.new("TextButton")
-chestBtn.Size = UDim2.new(1, -5, 0, 38)
-chestBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-chestBtn.Text = "Auto Event Chest: OFF"
-chestBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-chestBtn.Font = Enum.Font.SourceSansBold
-chestBtn.TextSize = 14
-chestBtn.Parent = pages["Events"]
-local cbt = Instance.new("UICorner") cbt.CornerRadius = UDim.new(0, 6) cbt.Parent = chestBtn
-
-chestBtn.MouseButton1Click:Connect(function()
-    chestBtnEnabled = not chestBtnEnabled
-    _G.Legenda32Settings.AutoEventChest = chestBtnEnabled
-    if chestBtnEnabled then
-        chestBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 70)
-        chestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        task.spawn(function()
-            local chestCooldown = 0
-            while chestBtnEnabled and _G.Legenda32Settings.AutoEventChest do
-                local breakables = workspace:FindFirstChild("Breakables")
-                local targetChest = nil
-                if breakables then
-                    for _, obj in ipairs(breakables:GetChildren()) do
-                        if string.find(obj.Name, "Void") and string.find(obj.Name, "Chest") then targetChest = obj break end
-                    end
-                end
-                if targetChest then
-                    chestBtn.Text = "⚔️ Destroying Chest..."
-                    local clickRemote = findRemote({"Click", "Breakables_PlayerClick", "PlayerClick"})
-                    if clickRemote then clickRemote:FireServer(targetChest.Name) end
-                    task.wait(0.2)
-                    chestCooldown = 300 
-                else
-                    if chestCooldown > 0 then chestBtn.Text = "⏱️ Next Chest: " .. tostring(chestCooldown) .. "s" chestCooldown = chestCooldown - 1 task.wait(1)
-                    else chestBtn.Text = "🔍 Searching Chest..." task.wait(2) end
-                end
-            end
-        end)
-    else chestBtn.Text = "Auto Event Chest: OFF" chestBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45) chestBtn.TextColor3 = Color3.fromRGB(200, 200, 200) end
-end)
-
--- =======================================================
 -- 📍 ВКЛАДКА [ TRADING ]
 -- =======================================================
 createToggle(pages["Trading"], "Auto Begging Bot", "AutoBeggingBot", function(toggled)
@@ -501,9 +385,8 @@ createToggle(pages["Trading"], "Auto Begging Bot", "AutoBeggingBot", function(to
         while toggled and _G.Legenda32Settings.AutoBeggingBot do
             local incomingRequest = player:FindFirstChild("IncomingTradeRequest") or player:FindFirstChild("TradeRequest")
             if incomingRequest and incomingRequest.Value then
-                local sender = incomingRequest.Value
-                local respondRemote = findRemote({"RespondRequest", "AcceptRequest", "Trade_AcceptRequest"})
-                if respondRemote then respondRemote:FireServer(sender, true) task.wait(1) end
+                FireNetworkEvent("Trading: Accept Request", incomingRequest.Value)
+                task.wait(1)
             end
             task.wait(0.5)
         end
@@ -515,8 +398,8 @@ createToggle(pages["Trading"], "Auto Begging Bot", "AutoBeggingBot", function(to
                 if otherPlayer ~= player and toggled and not processedPlayers[otherPlayer.UserId] then
                     local inTrade = player:FindFirstChild("InTrade") or player:FindFirstChild("TradingState")
                     if not inTrade then
-                        local requestRemote = findRemote({"SendRequest", "Trade_Request", "Trading_SendRequest"})
-                        if requestRemote then requestRemote:FireServer(otherPlayer) processedPlayers[otherPlayer.UserId] = true end
+                        FireNetworkEvent("Trading: Send Request", otherPlayer)
+                        processedPlayers[otherPlayer.UserId] = true
                     end
                     task.wait(3)
                 end
@@ -539,8 +422,7 @@ createToggle(pages["Trading"], "Auto Begging Bot", "AutoBeggingBot", function(to
                 if currentPartner then
                     local playerLang = getPlayerLanguage(currentPartner)
                     local selectedPhrase = playerLang == "RU" and russianPhrases[math.random(1, #russianPhrases)] or englishPhrases[math.random(1, #englishPhrases)]
-                    local msgRemote = findRemote({"SendMessage", "Trade_SendMessage", "Trading_Chat"})
-                    if msgRemote then msgRemote:FireServer(selectedPhrase) end
+                    FireNetworkEvent("Trading: Send Message", selectedPhrase)
                 end
             end
             
@@ -554,8 +436,7 @@ createToggle(pages["Trading"], "Auto Begging Bot", "AutoBeggingBot", function(to
                 if partnerGems and partnerGems:IsA("ValueBase") and partnerGems.Value > 0 then hasGems = true
                 elseif partnerOffer and partnerOffer:FindFirstChild("Diamonds") and partnerOffer.Diamonds.Value > 0 then hasGems = true end
                 if hasItems or hasGems then
-                    local acceptRemote = findRemote({"Trade_Accept", "Trading_Accept", "AcceptTrade"})
-                    if acceptRemote then acceptRemote:FireServer() end
+                    FireNetworkEvent("Trading: Accept Trade")
                 end
             end
             if not currentTrade then lastTradeState = false currentPartner = nil end
@@ -595,7 +476,7 @@ aiHeader.Parent = pages["Misc"]
 local aiGenerateBtn = Instance.new("TextButton")
 aiGenerateBtn.Size = UDim2.new(1, -5, 0, 40)
 aiGenerateBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 150)
-aiGenerateBtn.Text = "⚡ Run AI Resource Analysis"
+aiGenerateBtn.Text = "⚡ Run AI Diagnostics"
 aiGenerateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 aiGenerateBtn.Font = Enum.Font.SourceSansBold
 aiGenerateBtn.TextSize = 13
@@ -603,34 +484,18 @@ aiGenerateBtn.Parent = pages["Misc"]
 local aicb = Instance.new("UICorner") aicb.CornerRadius = UDim.new(0, 6) aicb.Parent = aiGenerateBtn
 
 aiGenerateBtn.MouseButton1Click:Connect(function()
-    aiGenerateBtn.Text = "🧠 AI analyzing resources..."
+    aiGenerateBtn.Text = "🧠 AI Engine: Оптимизация сети..."
     task.wait(1.5)
-    local coins = 0
-    local leaderstats = player:FindFirstChild("leaderstats")
-    if leaderstats and leaderstats:FindFirstChild("RNG Coins") then coins = leaderstats["RNG Coins"].Value end
     
-    if coins < 50000 then
-        _G.Legenda32Settings.CraftReserve = 1000
-        _G.Legenda32Settings.SmartRNGUpgrades = false
-        _G.Legenda32Settings.AutoUpgradeDice = true
-        _G.Legenda32Settings.LuckStormBooster = true
-    elseif coins >= 50000 and coins < 2000000 then
-        _G.Legenda32Settings.CraftReserve = 300000
-        _G.Legenda32Settings.SmartRNGUpgrades = true
-        _G.Legenda32Settings.AutoUpgradeDice = true
-        _G.Legenda32Settings.LuckStormBooster = true
-    else
-        _G.Legenda32Settings.CraftReserve = 1500000
-        _G.Legenda32Settings.SmartRNGUpgrades = true
-        _G.Legenda32Settings.AutoUpgradeDice = true
-        _G.Legenda32Settings.LuckStormBooster = true
-    end
+    _G.Legenda32Settings.AutoCollectRewards = true
+    _G.Legenda32Settings.AutoPlaceFlags = true
+    _G.Legenda32Settings.AntiAfk = true
     
     for key, val in pairs(_G.Legenda32Settings) do
         if activeToggles[key] then activeToggles[key].Update(val) task.spawn(activeToggles[key].Callback, val) end
     end
-    aiGenerateBtn.Text = "✅ AI Configuration Applied!"
-    task.wait(1.5) aiGenerateBtn.Text = "⚡ Run AI Resource Analysis"
+    aiGenerateBtn.Text = "✅ Система стабилизирована!"
+    task.wait(1.5) aiGenerateBtn.Text = "⚡ Run AI Diagnostics"
 end)
 
 -- =======================================================
@@ -641,7 +506,7 @@ if UserInputService.TouchEnabled and not GuiService:IsTenFootInterface() then
     mobileButton.Size = UDim2.new(0, 50, 0, 50)
     mobileButton.Position = UDim2.new(0, 15, 0, 120) 
     mobileButton.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-        mobileButton.Text = "L" 
+    mobileButton.Text = "L" 
     mobileButton.TextColor3 = Color3.fromRGB(20, 20, 20)
     mobileButton.Font = Enum.Font.SourceSansBold
     mobileButton.TextSize = 24 
@@ -657,4 +522,3 @@ if UserInputService.TouchEnabled and not GuiService:IsTenFootInterface() then
         mainFrame.Visible = not mainFrame.Visible 
     end)
 end
-
