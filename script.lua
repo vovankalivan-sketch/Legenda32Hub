@@ -1,44 +1,44 @@
--- Защита от повторного запуска скрипта
-if game:GetService("CoreGui"):FindFirstChild("LegendaHubMobile") then
-    game:GetService("CoreGui"):FindFirstChild("LegendaHubMobile"):Destroy()
+-- Очистка старого UI перед запуском
+if game:GetService("CoreGui"):FindFirstChild("LegendaHubMobileFix") then
+    game:GetService("CoreGui"):FindFirstChild("LegendaHubMobileFix"):Destroy()
 end
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Главный контейнер
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LegendaHubMobile"
-ScreenGui.Parent = game:GetService("CoreGui")
-
--- Переменная для контроля цикла фарма
+-- Флаги функций
 local _G = getgenv and getgenv() or _G
 _G.AutoFarmLastZone = false
+_G.AutoRNGEvent = false
+
+-- Создание главного контейнера
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LegendaHubMobileFix"
+ScreenGui.Parent = game:GetService("CoreGui")
 
 -- ==========================================
--- КНОПКА «L» ДЛЯ ТЕЛЕФОНА
+-- КНОПКА «L» ДЛЯ ОТОБРАЖЕНИЯ МЕНЮ
 -- ==========================================
 local ToggleButton = Instance.new("TextButton")
 local ButtonCorner = Instance.new("UICorner")
 
 ToggleButton.Name = "L_Button"
 ToggleButton.Parent = ScreenGui
-ToggleButton.Position = UDim2.new(0.05, 0, 0.25, 0)
-ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Position = UDim2.new(0.02, 0, 0.25, 0)
+ToggleButton.Size = UDim2.new(0, 45, 0, 45)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
 ToggleButton.Text = "L"
 ToggleButton.TextColor3 = Color3.fromRGB(0, 210, 255)
-ToggleButton.TextSize = 28
+ToggleButton.TextSize = 24
 ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Draggable = true
 
 ButtonCorner.CornerRadius = UDim.new(1, 0)
 ButtonCorner.Parent = ToggleButton
 
 -- ==========================================
--- ГЛАВНОЕ ОКНО МЕНЮ (LegendaHub)
+-- ОСНОВНОЕ ОКНО
 -- ==========================================
 local MainFrame = Instance.new("Frame")
 local MainCorner = Instance.new("UICorner")
@@ -47,167 +47,235 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.Position = UDim2.new(0.5, -160, 0.5, -110)
 MainFrame.Size = UDim2.new(0, 320, 0, 220)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
 MainFrame.Visible = true
 
-MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- Заголовок меню
-local HeaderLabel = Instance.new("TextLabel")
-HeaderLabel.Size = UDim2.new(1, 0, 0, 40)
-HeaderLabel.BackgroundTransparency = 1
-HeaderLabel.Text = "  LegendaHub | PS99"
-HeaderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-HeaderLabel.TextSize = 18
-HeaderLabel.Font = Enum.Font.GothamBold
-HeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
-HeaderLabel.Parent = MainFrame
+-- Заголовок хаба
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundTransparency = 1
+Title.Text = "  LegendaHub | PS99"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = MainFrame
 
--- Переключатель видимости меню по кнопке "L"
+-- Переключатель видимости по кнопке L
 ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
 -- ==========================================
--- ВКЛАДКА: АВТОФАРМ
+-- КНОПКИ ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК (НАВИГАЦИЯ)
 -- ==========================================
-local TabFrame = Instance.new("Frame")
-TabFrame.Position = UDim2.new(0, 10, 0, 45)
-TabFrame.Size = UDim2.new(1, -20, 1, -55)
-TabFrame.BackgroundTransparency = 1
-TabFrame.Parent = MainFrame
+local TabNavFrame = Instance.new("Frame")
+TabNavFrame.Position = UDim2.new(0, 10, 0, 40)
+TabNavFrame.Size = UDim2.new(1, -20, 0, 30)
+TabNavFrame.BackgroundTransparency = 1
+TabNavFrame.Parent = MainFrame
 
--- Заголовок вкладки
-local TabTitle = Instance.new("TextLabel")
-TabTitle.Size = UDim2.new(1, 0, 0, 25)
-TabTitle.BackgroundTransparency = 1
-TabTitle.Text = "Вкладка: Автофарм"
-TabTitle.TextColor3 = Color3.fromRGB(0, 210, 255)
-TabTitle.TextSize = 14
-TabTitle.Font = Enum.Font.GothamSemibold
-TabTitle.TextXAlignment = Enum.TextXAlignment.Left
-TabTitle.Parent = TabFrame
+local BtnFarmTab = Instance.new("TextButton")
+BtnFarmTab.Size = UDim2.new(0.5, -5, 1, 0)
+BtnFarmTab.Position = UDim2.new(0, 0, 0, 0)
+BtnFarmTab.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+BtnFarmTab.Text = "Автофарм"
+BtnFarmTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnFarmTab.Font = Enum.Font.GothamBold
+BtnFarmTab.TextSize = 12
+BtnFarmTab.Parent = TabNavFrame
+Instance.new("UICorner", BtnFarmTab).CornerRadius = UDim.new(0, 6)
 
--- Кнопка-переключатель функции
+local BtnEventTab = Instance.new("TextButton")
+BtnEventTab.Size = UDim2.new(0.5, -5, 1, 0)
+BtnEventTab.Position = UDim2.new(0.5, 5, 0, 0)
+BtnEventTab.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+BtnEventTab.Text = "Эвенты"
+BtnEventTab.TextColor3 = Color3.fromRGB(150, 150, 150)
+BtnEventTab.Font = Enum.Font.GothamBold
+BtnEventTab.TextSize = 12
+BtnEventTab.Parent = TabNavFrame
+Instance.new("UICorner", BtnEventTab).CornerRadius = UDim.new(0, 6)
+
+-- Контейнеры для содержимого вкладок
+local FarmContent = Instance.new("Frame")
+FarmContent.Position = UDim2.new(0, 10, 0, 80)
+FarmContent.Size = UDim2.new(1, -20, 1, -90)
+FarmContent.BackgroundTransparency = 1
+FarmContent.Parent = MainFrame
+
+local EventContent = Instance.new("Frame")
+EventContent.Position = UDim2.new(0, 10, 0, 80)
+EventContent.Size = UDim2.new(1, -20, 1, -90)
+EventContent.BackgroundTransparency = 1
+EventContent.Visible = false
+EventContent.Parent = MainFrame
+
+-- Логика переключения контейнеров
+BtnFarmTab.MouseButton1Click:Connect(function()
+    FarmContent.Visible = true
+    EventContent.Visible = false
+    BtnFarmTab.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    BtnFarmTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    BtnEventTab.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    BtnEventTab.TextColor3 = Color3.fromRGB(150, 150, 150)
+end)
+
+BtnEventTab.MouseButton1Click:Connect(function()
+    FarmContent.Visible = false
+    EventContent.Visible = true
+    BtnEventTab.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    BtnEventTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    BtnFarmTab.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    BtnFarmTab.TextColor3 = Color3.fromRGB(150, 150, 150)
+end)
+
+-- ==========================================
+-- СОДЕРЖИМОЕ ВКЛАДКИ «АВТОФАРМ»
+-- ==========================================
 local FarmToggle = Instance.new("TextButton")
-local ToggleCorner = Instance.new("UICorner")
-
-FarmToggle.Position = UDim2.new(0, 0, 0, 35)
 FarmToggle.Size = UDim2.new(1, 0, 0, 45)
-FarmToggle.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+FarmToggle.BackgroundColor3 = Color3.fromRGB(40, 30, 30)
 FarmToggle.Text = "Фарм последней открытой локи: ВЫКЛ"
 FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
-FarmToggle.TextSize = 14
 FarmToggle.Font = Enum.Font.GothamBold
+FarmToggle.TextSize = 12
+FarmToggle.Parent = FarmContent
+Instance.new("UICorner", FarmToggle).CornerRadius = UDim.new(0, 6)
 
-ToggleCorner.CornerRadius = UDim.new(0, 8)
-ToggleCorner.Parent = FarmToggle
-FarmToggle.Parent = TabFrame
-
--- Текст статуса для отслеживания текущей зоны
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Position = UDim2.new(0, 0, 0, 90)
+StatusLabel.Position = UDim2.new(0, 0, 0, 55)
 StatusLabel.Size = UDim2.new(1, 0, 0, 20)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Статус: Ожидание запуска..."
-StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
-StatusLabel.TextSize = 12
+StatusLabel.Text = "Статус ТП: Ожидание..."
+StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
 StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 11
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Parent = TabFrame
+StatusLabel.Parent = FarmContent
 
--- ==========================================
--- ЛОГИКА ОПРЕДЕЛЕНИЯ ЗОНЫ, ТЕЛЕПОРТА И ФАРМА
--- ==========================================
-
--- Функция поиска самой последней разблокированной зоны
-local function GetLastUnlockedZone()
-    local mapFolder = Workspace:FindFirstChild("Map")
-    local lastZoneNum = 0
-    local lastZoneObj = nil
-    
-    if mapFolder then
-        for _, zone in ipairs(mapFolder:GetChildren()) do
-            -- Проверяем зоны по названию (например, "1 | Spawn", "2 | Breakages")
-            local zoneNum = tonumber(zone.Name:match("^(%d+)"))
-            -- В Pet Sim 99 у активных зон обычно включены коллизии или есть папка с монетами
-            if zoneNum and zoneNum > lastZoneNum and zone:FindFirstChild("PERSISTENT") then
-                lastZoneNum = zoneNum
-                lastZoneObj = zone
+-- Функция поиска последней зоны на карте
+local function GetLastZone()
+    local map = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("ActiveZones")
+    local maxNum, bestZone = 0, nil
+    if map then
+        for _, z in ipairs(map:GetChildren()) do
+            local num = tonumber(z.Name:match("^(%d+)"))
+            if num and num > maxNum then
+                maxNum = num
+                bestZone = z
             end
         end
     end
-    
-    -- Если папка Map пуста или изменена, ищем через папки активных зон
-    if not lastZoneObj then
-        local activeZones = Workspace:FindFirstChild("ActiveZones")
-        if activeZones then
-            for _, zone in ipairs(activeZones:GetChildren()) do
-                local zoneNum = tonumber(zone.Name:match("^(%d+)"))
-                if zoneNum and zoneNum > lastZoneNum then
-                    lastZoneNum = zoneNum
-                    lastZoneObj = zone
-                end
-            end
-        end
-    end
-    
-    return lastZoneObj, lastZoneNum
+    return bestZone, maxNum
 end
 
--- Логика переключателя
 FarmToggle.MouseButton1Click:Connect(function()
     _G.AutoFarmLastZone = not _G.AutoFarmLastZone
-    
     if _G.AutoFarmLastZone then
         FarmToggle.Text = "Фарм последней открытой локи: ВКЛ"
         FarmToggle.TextColor3 = Color3.fromRGB(75, 255, 75)
+        FarmToggle.BackgroundColor3 = Color3.fromRGB(30, 40, 30)
         
-        -- Запуск асинхронного цикла
         task.spawn(function()
             while _G.AutoFarmLastZone do
-                local targetZone, zoneNumber = GetLastUnlockedZone()
-                
-                if targetZone then
-                    StatusLabel.Text = "Статус: Локация определена (Зона " .. tostring(zoneNumber) .. ")"
-                    
-                    local character = LocalPlayer.Character
-                    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                    
-                    if rootPart then
-                        -- Поиск центральной точки зоны для безопасного телепорта
-                        local targetPos = targetZone:GetAttribute("CenterPosition") or targetZone:GetPivot().Position
-                        
-                        -- Безопасный телепорт (чуть выше земли, чтобы не провалиться)
-                        if (rootPart.Position - targetPos).Magnitude > 50 then
-                            StatusLabel.Text = "Статус: Телепортация в Зону " .. tostring(zoneNumber) .. "..."
-                            rootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 5, 0))
-                            task.wait(1) -- Время на прогрузку карты после ТП
-                        end
-                        
-                        -- Симуляция отправки питомцев на монеты в этой зоне
-                        StatusLabel.Text = "Статус: Фармим в Зоне " .. tostring(zoneNumber) .. "!"
-                        
-                        -- Сбор выпадающих сфер (Orbs) и сундуков на земле вокруг игрока
-                        for _, obj in ipairs(Workspace:GetChildren()) do
-                            if obj.Name == "Lootbag" or obj.Name == "Orb" then
-                                if (obj.Position - rootPart.Position).Magnitude <= 150 then
-                                    obj.Position = rootPart.Position
-                                end
-                            end
+                local zone, num = GetLastZone()
+                if zone and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    StatusLabel.Text = "Статус ТП: Локация найдена (Зона " .. tostring(num) .. ")"
+                    local cf = zone:GetPivot().Position
+                    local root = LocalPlayer.Character.HumanoidRootPart
+                    if (root.Position - cf).Magnitude > 60 then
+                        root.CFrame = CFrame.new(cf + Vector3.new(0, 6, 0))
+                        task.wait(1)
+                    end
+                    -- Автоматическое притягивание Orbs
+                    for _, v in ipairs(Workspace:GetChildren()) do
+                        if (v.Name == "Orb" or v.Name == "Lootbag") and v:IsA("BasePart") then
+                            v.Position = root.Position
                         end
                     end
                 else
-                    StatusLabel.Text = "Статус: Не удалось определить зону. Попробуйте пройти вперед."
+                    StatusLabel.Text = "Статус ТП: Ошибка сканирования карты"
                 end
-                task.wait(0.2) -- Задержка цикла для предотвращения лагов
+                task.wait(0.3)
             end
         end)
-        
     else
         FarmToggle.Text = "Фарм последней открытой локи: ВЫКЛ"
         FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
-        StatusLabel.Text = "Статус: Автофарм остановлен."
+        FarmToggle.BackgroundColor3 = Color3.fromRGB(40, 30, 30)
+        StatusLabel.Text = "Статус ТП: Остановлен"
+    end
+end)
+
+-- ==========================================
+-- СОДЕРЖИМОЕ ВКЛАДКИ «ЭВЕНТЫ» (АВТО-RNG)
+-- ==========================================
+local RngToggle = Instance.new("TextButton")
+local RngCorner = Instance.new("UICorner")
+
+RngToggle.Size = UDim2.new(1, 0, 0, 45)
+RngToggle.BackgroundColor3 = Color3.fromRGB(40, 30, 30)
+RngToggle.Text = "Авто RNG Ролл событие: ВЫКЛ"
+RngToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
+RngToggle.Font = Enum.Font.GothamBold
+RngToggle.TextSize = 12
+
+RngCorner.CornerRadius = UDim.new(0, 6)
+RngCorner.Parent = RngToggle
+RngToggle.Parent = EventContent
+
+local RngStatus = Instance.new("TextLabel")
+RngStatus.Position = UDim2.new(0, 0, 0, 55)
+RngStatus.Size = UDim2.new(1, 0, 0, 20)
+RngStatus.BackgroundTransparency = 1
+RngStatus.Text = "Статус RNG: Не активен"
+RngStatus.TextColor3 = Color3.fromRGB(160, 160, 160)
+RngStatus.Font = Enum.Font.Gotham
+RngStatus.TextSize = 11
+RngStatus.TextXAlignment = Enum.TextXAlignment.Left
+RngStatus.Parent = EventContent
+
+-- Логика Авто RNG Ролла
+RngToggle.MouseButton1Click:Connect(function()
+    _G.AutoRNGEvent = not _G.AutoRNGEvent
+    if _G.AutoRNGEvent then
+        RngToggle.Text = "Авто RNG Ролл событие: ВКЛ"
+        RngToggle.TextColor3 = Color3.fromRGB(75, 255, 75)
+        RngToggle.BackgroundColor3 = Color3.fromRGB(30, 40, 30)
+        
+        task.spawn(function()
+            while _G.AutoRNGEvent do
+                RngStatus.Text = "Статус RNG: Крутим кубик (Roll)..."
+                
+                -- Эмуляция клика по удаленному событию RNG Ивента в PS99
+                local network = ReplicatedStorage:FindFirstChild("Network")
+                if network then
+                    -- Посылаем сетевые сигналы ролла (работает как в обычной локации, так и в ивент-мире)
+                    local rollEvent = network:FindFirstChild("RNG_Roll") or network:FindFirstChild("RNG_Event_Roll")
+                    if rollEvent then
+                        rollEvent:InvokeServer()
+                    else
+                        -- Резервный метод: нажатие кнопки через интерфейс, если ремот скрыт
+                        pcall(function()
+                            local gui = LocalPlayer.PlayerGui:FindFirstChild("RNGEvent") or LocalPlayer.PlayerGui:FindFirstChild("RNG")
+                            if gui and gui:FindFirstChild("Main") and gui.Main:FindFirstChild("RollButton") then
+                                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(gui.Main.RollButton.AbsolutePosition.X + 10, gui.Main.RollButton.AbsolutePosition.Y + 10, 0, true, game, 1)
+                                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(gui.Main.RollButton.AbsolutePosition.X + 10, gui.Main.RollButton.AbsolutePosition.Y + 10, 0, false, game, 1)
+                            end
+                        end)
+                    end
+                end
+                task.wait(0.2) -- Быстрый повтор ролла
+            end
+        end)
+    else
+        RngToggle.Text = "Авто RNG Ролл событие: ВЫКЛ"
+        RngToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
+        RngToggle.BackgroundColor3 = Color3.fromRGB(40, 30, 30)
+        RngStatus.Text = "Статус RNG: Остановлен"
     end
 end)
