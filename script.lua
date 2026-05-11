@@ -1,9 +1,8 @@
 -- =======================================================
--- ★ Legenda32Hub — Полная и Окончательная Версия ★
+-- ★ Legenda32Hub — Фикс Загрузки для Delta Executor ★
 -- =======================================================
 
 -- Сервисы игры
-local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -12,15 +11,19 @@ local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
-local network = ReplicatedStorage:WaitForChild("Network", 5)
+local network = ReplicatedStorage:WaitForChild("Network", 7)
 
--- Настройки безопасности баланса и крафта (Лимиты)
+-- БЕЗОПАСНОЕ ОПРЕДЕЛЕНИЕ ПАПКИ ИНТЕРФЕЙСА (Фикс для Delta)
+local targetGuiFolder = player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
+
+-- Удаление старой копии интерфейса перед перезапуском
+if targetGuiFolder:FindFirstChild("Legenda32Hub_Gui") then
+    targetGuiFolder:FindFirstChild("Legenda32Hub_Gui"):Destroy()
+end
+
 local CRAFT_RESERVE_LIMIT = 1000000 
-
--- Имя файла для сохранения настроек
 local CONFIG_FILE_NAME = "Legenda32Hub_Config.json"
 
--- Глобальная таблица состояний для сохранения
 _G.Legenda32Settings = {
     CraftReserve = 1000000,
     WalkSpeedBoost = 0,
@@ -37,7 +40,6 @@ _G.Legenda32Settings = {
     AntiAfk = false
 }
 
--- База фраз для трейд-бота (без упоминания кубиков)
 local russianPhrases = {
     "можешь пожалуйста чем то помочь хочу дойти с нуля до гаргантюа",
     "можешь пожалуйста что нибудь подарить я новичек",
@@ -59,21 +61,15 @@ local englishPhrases = {
 local processedPlayers = {}
 local activeToggles = {} 
 
--- Очистка черного списка при выходе игроков
 Players.PlayerRemoving:Connect(function(leftPlayer)
     processedPlayers[leftPlayer.UserId] = nil
 end)
-
--- Защита от дублирования интерфейса
-if game:GetService("CoreGui"):FindFirstChild("Legenda32Hub_Gui") then
-    game:GetService("CoreGui"):FindFirstChild("Legenda32Hub_Gui"):Destroy()
-end
 
 -- 1. Создание основы интерфейса
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "Legenda32Hub_Gui"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = CoreGui
+screenGui.Parent = targetGuiFolder
 
 -- 2. Главное окно меню
 local mainFrame = Instance.new("Frame")
@@ -90,7 +86,6 @@ local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 10)
 uiCorner.Parent = mainFrame
 
--- Заголовок меню
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -40, 0, 40)
 titleLabel.Position = UDim2.new(0, 15, 0, 0)
@@ -102,7 +97,6 @@ titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = mainFrame
 
--- Кнопка закрытия (X)
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 30, 0, 30)
 closeButton.Position = UDim2.new(1, -35, 0, 5)
@@ -118,7 +112,6 @@ closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
 closeButton.MouseButton1Click:Connect(function() mainFrame.Visible = false end)
 
--- Боковая панель для 7 вкладок
 local sidebar = Instance.new("Frame")
 sidebar.Size = UDim2.new(0, 120, 1, -50)
 sidebar.Position = UDim2.new(0, 10, 0, 45)
@@ -134,7 +127,6 @@ uiListLayout.Parent = sidebar
 uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 uiListLayout.Padding = UDim.new(0, 3)
 
--- Контейнер страниц
 local container = Instance.new("Frame")
 container.Size = UDim2.new(1, -150, 1, -50)
 container.Position = UDim2.new(0, 140, 0, 45)
@@ -185,7 +177,6 @@ local function createTab(name, icon, order)
     end)
 end
 
--- Создание структуры вкладок
 createTab("Farm", "🌾", 1)
 createTab("Items", "🎒", 2)
 createTab("Visuals", "👁️", 3)
@@ -199,7 +190,6 @@ tabButtons["Events"].TextColor3 = Color3.fromRGB(0, 255, 150)
 tabButtons["Events"].BackgroundTransparency = 0
 tabButtons["Events"].BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 
--- Конструктор переключателей Toggle
 local function createToggle(parent, text, configKey, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -5, 0, 38)
@@ -235,13 +225,12 @@ local function createToggle(parent, text, configKey, callback)
     end)
 end
 
--- Пустышки под будущие системы
 createToggle(pages["Items"], "Auto Use Potions", "Dummy1", function() end)
 createToggle(pages["Items"], "Auto Vending Machines", "Dummy2", function() end)
 createToggle(pages["Visuals"], "Shiny Relic ESP", "Dummy3", function() end)
 
 -- =======================================================
--- 📍 ВКЛАДКА [ FARM ] (Автофарм ресурсов)
+-- 📍 ВКЛАДКА [ FARM ]
 -- =======================================================
 local function table_getLastUnlockedZone()
     local mapFolder = workspace:FindFirstChild("Map")
@@ -318,7 +307,7 @@ createToggle(pages["Farm"], "Auto Collect Rewards", "AutoCollectRewards", functi
 end)
 
 -- =======================================================
--- 📍 ВКЛАДКА [ PLAYER ] (Характеристики и обход AFK)
+-- 📍 ВКЛАДКА [ PLAYER ]
 -- =======================================================
 local speedTitle = Instance.new("TextLabel")
 speedTitle.Size = UDim2.new(1, -5, 0, 20)
@@ -367,7 +356,7 @@ createToggle(pages["Player"], "Anti-AFK (No Disconnect)", "AntiAfk", function(to
 end)
 
 -- =======================================================
--- 📍 ВКЛАДКА [ EVENTS ] (Автоматизация Бездны и сундука)
+-- 📍 ВКЛАДКА [ EVENTS ]
 -- =======================================================
 local eventHeader = Instance.new("TextLabel")
 eventHeader.Size = UDim2.new(1, -5, 0, 25)
@@ -479,9 +468,7 @@ chestBtn.MouseButton1Click:Connect(function()
     else chestBtn.Text = "Auto Event Chest: OFF" chestBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45) chestBtn.TextColor3 = Color3.fromRGB(200, 200, 200) end
 end)
 
--- =======================================================
--- 📍 ВКЛАДКА [ TRADING ] (Мультиязычный Трейд-бот)
--- =======================================================
+-- Вкладка Trading
 local tradeHeader = Instance.new("TextLabel")
 tradeHeader.Size = UDim2.new(1, -5, 0, 25)
 tradeHeader.BackgroundTransparency = 1
@@ -585,11 +572,10 @@ createToggle(pages["Trading"], "Auto Server Hop", "AutoServerHop", function(togg
         end
     end
 end)
--- =======================================================
--- 📍 ВКЛАДКА [ MISC ] (Менеджер сохранений и Локальный ИИ)
--- =======================================================
+
+-- Вкладка Misc
 local miscHeader = Instance.new("TextLabel")
-miscHeader.Size = UDim2.new(1, -5, 0, 20)
+miscHeader.Size = ULim2.new(1, -5, 0, 20)
 miscHeader.BackgroundTransparency = 1
 miscHeader.Text = "⚙️ Config File Manager"
 miscHeader.TextColor3 = Color3.fromRGB(0, 255, 150)
@@ -632,13 +618,14 @@ loadConfigBtn.MouseButton1Click:Connect(function()
             _G.Legenda32Settings[key] = val
             if activeToggles[key] then activeToggles[key].Update(val) task.spawn(activeToggles[key].Callback, val) end
         end
-        loadConfigBtn.Text = "✅ Config Loaded!"
-    else loadConfigBtn.Text = "❌ No Saved Config Found" end
-    task.wait(1.5) loadConfigBtn.Text = "📂 Load Saved Config"
+        loadConfigBtn.    else 
+        loadConfigBtn.Text = "❌ No Saved Config Found" 
+    end
+    task.wait(1.5) 
+    loadConfigBtn.Text = "📂 Load Saved Config"
 end)
 
 local deleteConfigBtn = Instance.new("TextButton")
-deleteConfigBtn.Size
 deleteConfigBtn.Size = UDim2.new(1, -5, 0, 35)
 deleteConfigBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
 deleteConfigBtn.Text = "🗑️ Delete Config"
@@ -710,23 +697,21 @@ aiGenerateBtn.MouseButton1Click:Connect(function()
     aiGenerateBtn.Text = "⚡ Run AI Resource Analysis"
 end)
 
--- =======================================================
--- ⚙️ СИСТЕМНОЕ УПРАВЛЕНИЕ ХАБОМ (Клавиатура и Кнопка L)
--- =======================================================
+-- Системные события (Управление)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end 
+    if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.Delete then mainFrame.Visible = not mainFrame.Visible end
 end)
 
 if UserInputService.TouchEnabled and not GuiService:IsTenFootInterface() then
     local mobileButton = Instance.new("TextButton")
     mobileButton.Size = UDim2.new(0, 50, 0, 50)
-    mobileButton.Position = UDim2.new(0, 15, 0, 120) 
+    mobileButton.Position = UDim2.new(0, 15, 0, 120)
     mobileButton.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-    mobileButton.Text = "L" 
+    mobileButton.Text = "L"
     mobileButton.TextColor3 = Color3.fromRGB(20, 20, 20)
     mobileButton.Font = Enum.Font.SourceSansBold
-    mobileButton.TextSize = 24 
+    mobileButton.TextSize = 24
     mobileButton.Parent = screenGui
     local mc = Instance.new("UICorner") mc.CornerRadius = UDim.new(1, 0) mc.Parent = mobileButton
     mobileButton.Active = true 
