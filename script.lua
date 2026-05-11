@@ -1,127 +1,377 @@
--- Полная принудительная очистка памяти перед запуском
-if game:GetService("CoreGui"):FindFirstChild("LegendaHubMobileFix") then game:GetService("CoreGui").LegendaHubMobileFix:Destroy() end
-if game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("LegendaHubMobileFix") then game:GetService("Players").LocalPlayer.PlayerGui.LegendaHubMobileFix:Destroy() end
+-- БЕЗОПАСНЫЙ ПЕРЕХВАТ ОШИБОК ПРИ ИНЖЕКТЕ И ЗАПУСКЕ СКРИПТА
+local function reportErrorInChat(errorMsg)
+    pcall(function()
+        -- Выводим системную ошибку прямо в чат игры
+        game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+            Text = "[LegendaHub Error]: " .. tostring(errorMsg),
+            Color = Color3.fromRGB(255, 75, 75),
+            Font = Enum.Font.GothamBold,
+            TextSize = 14
+        })
+    end)
+    warn("[LegendaHub Critical Error]: " .. tostring(errorMsg))
+end
 
-local LocalPlayer = game:GetService("Players").LocalPlayer
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- Основная обёртка pcall (Защита от краша при запуске)
+local success, mainErrorMessage = pcall(function()
 
--- Глобальные переключатели
-getgenv().AutoFarm = false
-getgenv().AutoRNG = false
+    -- Авто-очистка старых интерфейсов перед запуском
+    local LocalPlayer = game:GetService("Players").LocalPlayer
+    local Workspace = game:GetService("Workspace")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local UserInputService = game:GetService("UserInputService")
+    local RunService = game:GetService("RunService")
 
--- Создание UI в безопасную папку PlayerGui (если CoreGui заблокирован)
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LegendaHubMobileFix"
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
--- ==========================================
--- СТАТИЧНАЯ КНОПКА «L» (ВЕРХНИЙ ПРАВЫЙ УГОЛ)
--- ==========================================
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Parent = ScreenGui
-ToggleButton.Position = UDim2.new(0.82, 0, 0.05, 0) -- Правее и выше остальных кнопок игры
-ToggleButton.Size = UDim2.new(0, 40, 0, 40)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-ToggleButton.Text = "L"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 20
-
--- ==========================================
--- ГЛАВНАЯ ПАНЕЛЬ И ИСПРАВЛЕННЫЙ ТЕКСТ
--- ==========================================
-local MainFrame = Instance.new("Frame")
-MainFrame.Parent = ScreenGui
-MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
-MainFrame.Size = UDim2.new(0, 260, 0, 200)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Visible = true
-
-local Title = Instance.new("TextLabel")
-Title.Parent = MainFrame
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "LegendaHub v38"
-Title.TextColor3 = Color3.fromRGB(0, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-
-ToggleButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
-
--- ==========================================
--- КНОПКА ФАРМА (ПРЯМОЙ ВЫЗОВ REMOTES)
--- ==========================================
-local FarmBtn = Instance.new("TextButton")
-FarmBtn.Parent = MainFrame
-FarmBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
-FarmBtn.Size = UDim2.new(0.9, 0, 0, 35)
-FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
-FarmBtn.Text = "Фарм сфер: ВЫКЛ"
-FarmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-FarmBtn.MouseButton1Click:Connect(function()
-    getgenv().AutoFarm = not getgenv().AutoFarm
-    if getgenv().AutoFarm then
-        FarmBtn.Text = "Фарм сфер: ВКЛ"
-        FarmBtn.BackgroundColor3 = Color3.fromRGB(20, 50, 20)
-        task.spawn(function()
-            while getgenv().AutoFarm do
-                local char = LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                if root then
-                    -- Поиск и мгновенное физическое стягивание сфер без использования сетевых папок
-                    for _, v in ipairs(Workspace:GetDescendants()) do
-                        if (v.Name == "Orb" or v.Name == "Lootbag") and v:IsA("BasePart") then
-                            v.CFrame = root.CFrame
-                        end
-                    end
-                end
-                task.wait(0.3)
-            end
-        end)
-    else
-        FarmBtn.Text = "Фарм сфер: ВЫКЛ"
-        FarmBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+    if LocalPlayer.PlayerGui:FindFirstChild("LegendaHubUniversal") then 
+        LocalPlayer.PlayerGui.LegendaHubUniversal:Destroy() 
     end
-end)
 
--- ==========================================
--- КНОПКА ТЕЛЕПОРТА (СТРОГО В ЗОНУ 38)
--- ==========================================
-local TPBtn = Instance.new("TextButton")
-TPBtn.Parent = MainFrame
-TPBtn.Position = UDim2.new(0.05, 0, 0.45, 0)
-TPBtn.Size = UDim2.new(0.9, 0, 0, 35)
-TPBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-TPBtn.Text = "Телепорт в Зону 38"
-TPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    -- Настройки функций в getgenv()
+    getgenv().AutoFarmAdvanced = false
+    getgenv().AutoRNGEvent = false
+    getgenv().RGB_Enabled = false
 
-TPBtn.MouseButton1Click:Connect(function()
-    local map = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("ActiveZones")
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if map and root then
-        for _, zone in ipairs(map:GetChildren()) do
-            if zone.Name:match("^38%s") or zone.Name == "38" then
-                root.CFrame = zone:GetPivot() + Vector3.new(0, 5, 0)
-                break
+    -- Создание интерфейса в надежной папке PlayerGui (работает на всех читах)
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "LegendaHubUniversal"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- ==========================================
+    -- КВАДРАТНАЯ КНОПКА С КРУГЛЫМИ УГЛАМИ
+    -- ==========================================
+    local ToggleButton = Instance.new("TextButton")
+    local ButtonCorner = Instance.new("UICorner")
+
+    ToggleButton.Name = "L_Button"
+    ToggleButton.Parent = ScreenGui
+    ToggleButton.Position = UDim2.new(0.85, 0, 0.12, 0) -- Позиция вверху справа (выше кнопок игры)
+    ToggleButton.Size = UDim2.new(0, 45, 0, 45) -- Четкий квадрат
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    ToggleButton.Text = "L"
+    ToggleButton.TextColor3 = Color3.fromRGB(0, 210, 255)
+    ToggleButton.TextSize = 22
+    ToggleButton.Font = Enum.Font.GothamBold
+
+    ButtonCorner.CornerRadius = UDim.new(0, 10) -- Скругленные края парта
+    ButtonCorner.Parent = ToggleButton
+
+    -- Безлаговый универсальный метод перемещения кнопки пальцем/мышкой
+    local dragging, dragStart, startPos
+    ToggleButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = ToggleButton.Position
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseBehavior or input.UserInputType == Enum.UserInputType.Touch) then
+            if input.Position then
+                local delta = input.Position - dragStart
+                ToggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    -- ==========================================
+    -- ГЛАВНАЯ СТАТИЧНАЯ ПАНЕЛЬ МЕНЮ
+    -- ==========================================
+    local MainFrame = Instance.new("Frame")
+    local MainCorner = Instance.new("UICorner")
+
+    MainFrame.Name = "MainFrame"
+    MainFrame.Parent = ScreenGui
+    MainFrame.Position = UDim2.new(0.5, -150, 0.5, -110)
+    MainFrame.Size = UDim2.new(0, 300, 0, 220)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+    MainFrame.Visible = true
+
+    MainCorner.CornerRadius = UDim.new(0, 12)
+    MainCorner.Parent = MainFrame
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 35)
+    Title.BackgroundTransparency = 1
+    Title.Text = "  LegendaHub | PS99"
+    Title.TextColor3 = Color3.fromRGB(0, 210, 255)
+    Title.TextSize = 15
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = MainFrame
+
+    ToggleButton.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+    end)
+
+    -- ==========================================
+    -- НАВИГАЦИЯ ВКЛАДОК (4 ШТУКИ)
+    -- ==========================================
+    local TabNavFrame = Instance.new("Frame")
+    TabNavFrame.Position = UDim2.new(0, 8, 0, 35)
+    TabNavFrame.Size = UDim2.new(1, -16, 0, 30)
+    TabNavFrame.BackgroundTransparency = 1
+    TabNavFrame.Parent = MainFrame
+
+    local function createTabBtn(text, posMultiplier)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0.24, 0, 1, 0)
+        btn.Position = UDim2.new(posMultiplier * 0.25, 0, 0, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+        btn.Text = text
+        btn.TextColor3 = Color3.fromRGB(140, 140, 140)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 10
+        btn.Parent = TabNavFrame
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+        return btn
+    end
+
+    local BtnFarm = createTabBtn("Фарм", 0)
+    local BtnEvent = createTabBtn("Эвенты", 1)
+    local BtnTeleport = createTabBtn("Телепорт", 2)
+    local BtnSettings = createTabBtn("Опции", 3)
+
+    BtnFarm.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    BtnFarm.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    local function createContainer()
+        local f = Instance.new("Frame")
+        f.Position = UDim2.new(0, 10, 0, 75)
+        f.Size = UDim2.new(1, -20, 1, -85)
+        f.BackgroundTransparency = 1
+        f.Visible = false
+        f.Parent = MainFrame
+        return f
+    end
+
+    local FarmContent = createContainer(); FarmContent.Visible = true
+    local EventContent = createContainer()
+    local TeleportContent = createContainer()
+    local SettingsContent = createContainer()
+
+    local function switchTab(activeContent, activeBtn)
+        FarmContent.Visible = (FarmContent == activeContent)
+        EventContent.Visible = (EventContent == activeContent)
+        TeleportContent.Visible = (TeleportContent == activeContent)
+        SettingsContent.Visible = (SettingsContent == activeContent)
+        
+        local btns = {BtnFarm, BtnEvent, BtnTeleport, BtnSettings}
+        for _, b in ipairs(btns) do
+            if b == activeBtn then
+                b.BackgroundColor3 = Color3.fromRGB(40, 40, 55); b.TextColor3 = Color3.fromRGB(255, 255, 255)
+            else
+                b.BackgroundColor3 = Color3.fromRGB(25, 25, 35); b.TextColor3 = Color3.fromRGB(140, 140, 140)
             end
         end
     end
+
+    BtnFarm.MouseButton1Click:Connect(function() switchTab(FarmContent, BtnFarm) end)
+    BtnEvent.MouseButton1Click:Connect(function() switchTab(EventContent, BtnEvent) end)
+    BtnTeleport.MouseButton1Click:Connect(function() switchTab(TeleportContent, BtnTeleport) end)
+    BtnSettings.MouseButton1Click:Connect(function() switchTab(SettingsContent, BtnSettings) end)
+
+    -- ==========================================
+    -- ПРОДВИНУТЫЙ УНИВЕРСАЛЬНЫЙ АВТОФАРМ
+    -- ==========================================
+    local FarmToggle = Instance.new("TextButton")
+    FarmToggle.Size = UDim2.new(1, 0, 0, 40)
+    FarmToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
+    FarmToggle.Text = "Сбор сфер (Вся карта): ВЫКЛ"
+    FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
+    FarmToggle.Font = Enum.Font.GothamBold
+    FarmToggle.TextSize = 11
+    FarmToggle.Parent = FarmContent
+    Instance.new("UICorner", FarmToggle).CornerRadius = UDim.new(0, 6)
+
+    FarmToggle.MouseButton1Click:Connect(function()
+        getgenv().AutoFarmAdvanced = not getgenv().AutoFarmAdvanced
+        if getgenv().AutoFarmAdvanced then
+            FarmToggle.Text = "Сбор сфер (Вся карта): ВКЛ"
+            FarmToggle.TextColor3 = Color3.fromRGB(75, 255, 75)
+            FarmToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
+            
+            task.spawn(function()
+                while getgenv().AutoFarmAdvanced do
+                    -- Перехват сетевых Ремотов через pcall, чтобы предотвратить вылет при их изменении
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                        if root then
+                            -- Ищем папки с Orbs в игре любыми путями
+                            local networkFolder = Workspace:FindFirstChild("Network")
+                            local orbs = networkFolder and networkFolder:FindFirstChild("Orbs")
+                            
+                            if orbs then
+                                for _, orb in ipairs(orbs:GetChildren()) do
+                                    if orb:IsA("BasePart") then
+                                        -- Физическое стягивание (работает всегда)
+                                        orb.CFrame = root.CFrame
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    task.wait(0.2)
+                end
+            end)
+        else
+            FarmToggle.Text = "Сбор сфер (Вся карта): ВЫКЛ"
+            FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
+            FarmToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
+        end
+    end)
+
+    -- ==========================================
+    -- ВКЛАДКА: ТЕЛЕПОРТЫ ПО ВСЕМ ЗОНАМ
+    -- ==========================================
+    local ScrollTeleport = Instance.new("ScrollingFrame")
+    ScrollTeleport.Size = UDim2.new(1, 0, 1, 0)
+    ScrollTeleport.BackgroundTransparency = 1
+    ScrollTeleport.CanvasSize = UDim2.new(0, 0, 2, 0)
+    ScrollTeleport.ScrollBarThickness = 2
+    ScrollTeleport.Parent = TeleportContent
+
+    local function createTpBtn(zoneName, displayName, index)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -6, 0, 32)
+        btn.Position = UDim2.new(0, 0, 0, (index - 1) * 36)
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+        btn.Text = "ТП в " .. displayName
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 11
+        btn.Parent = ScrollTeleport
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+        
+        btn.MouseButton1Click:Connect(function()
+            pcall(function()
+                local map = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("ActiveZones")
+                local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if map and root then
+                    for _, zone in ipairs(map:GetChildren()) do
+                        if zone.Name:match("^" .. zoneName .. "%s") or zone.Name == zoneName then
+                            root.CFrame = zone:GetPivot() + Vector3.new(0, 5, 0)
+                            break
+                        end
+                    end
+                end
+            end)
+        end)
+    end
+
+    createTpBtn("1", "Зону 1 (Спавн)", 1)
+    createTpBtn("10", "Зону 10 (Шахта)", 2)
+    createTpBtn("20", "Зону 20 (Пустыня)", 3)
+    createTpBtn("30", "Зону 30 (Пираты)", 4)
+    createTpBtn("38", "Зону 38 (Ваш Каньон)", 5)
+    createTpBtn("50", "Зону 50 (Самураи)", 6)
+
+    -- ==========================================
+    -- ВКЛАДКА: ЭВЕНТЫ (АВТО-RNG)
+    -- ==========================================
+    local RngToggle = Instance.new("TextButton")
+    RngToggle.Size = UDim2.new(1, 0, 0, 40)
+    RngToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
+    RngToggle.Text = "Авто RNG Крутилка: ВЫКЛ"
+    RngToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
+    RngToggle.Font = Enum.Font.GothamBold
+    RngToggle.TextSize = 11
+    RngToggle.Parent = EventContent
+    Instance.new("UICorner", RngToggle).CornerRadius = UDim.new(0, 6)
+
+    RngToggle.MouseButton1Click:Connect(function()
+        getgenv().AutoRNGEvent = not getgenv().AutoRNGEvent
+        if getgenv().AutoRNGEvent then
+            RngToggle.Text = "Авто RNG Крутилка: ВКЛ"
+            RngToggle.TextColor3 = Color3.fromRGB(75, 255, 75)
+            RngToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
+            task.spawn(function()
+                while getgenv().AutoRNGEvent do
+                    pcall(function()
+                        local net = ReplicatedStorage:FindFirstChild("Network")
+                        if net then
+                            local remote = net:FindFirstChild("RNG_Roll") or net:FindFirstChild("RNG_Event_Roll") or net:FindFirstChild("VoidRNG_Roll")
+                            if remote then remote:InvokeServer() end
+                        end
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        else
+            RngToggle.Text = "Авто RNG Крутилка: ВЫКЛ"
+            RngToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
+            RngToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
+        end
+    end)
+
+    -- ==========================================
+    -- ВКЛАДКА: ОПЦИИ И ПОЛНОЕ ЗАКРЫТИЕ
+    -- ==========================================
+    local RgbToggle = Instance.new("TextButton")
+    RgbToggle.Size = UDim2.new(1, 0, 0, 35)
+    RgbToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    RgbToggle.Text = "Переливающийся RGB режим: ВЫКЛ"
+    RgbToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    RgbToggle.Font = Enum.Font.GothamBold
+    RgbToggle.TextSize = 11
+    RgbToggle.Parent = SettingsContent
+    Instance.new("UICorner", RgbToggle).CornerRadius = UDim.new(0, 6)
+
+    local ShutdownButton = Instance.new("TextButton")
+    ShutdownButton.Size = UDim2.new(1, 0, 0, 35)
+    ShutdownButton.Position = UDim2.new(0, 0, 0, 45)
+    ShutdownButton.BackgroundColor3 = Color3.fromRGB(65, 25, 25)
+    ShutdownButton.Text = "ПОЛНОСТЬЮ УДАЛИТЬ СКРИПТ"
+    ShutdownButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+    ShutdownButton.Font = Enum.Font.GothamBold
+    ShutdownButton.TextSize = 11
+    ShutdownButton.Parent = SettingsContent
+    Instance.new("UICorner", ShutdownButton).CornerRadius = UDim.new(0, 6)
+
+    RunService.RenderStepped:Connect(function()
+        if getgenv().RGB_Enabled then
+            local hue = (tick() % 4) / 4
+            local color = Color3.fromHSV(hue, 1, 1)
+            Title.TextColor3 = color
+            ToggleButton.TextColor3 = color
+        end
+    end)
+
+    RgbToggle.MouseButton1Click:Connect(function()
+        getgenv().RGB_Enabled = not getgenv().RGB_Enabled
+        if getgenv().RGB_Enabled then
+            RgbToggle.Text = "Переливающийся RGB режим: ВКЛ"; RgbToggle.TextColor3 = Color3.fromRGB(75, 255, 75)
+        else
+            RgbToggle.Text = "Переливающийся RGB режим: ВЫКЛ"; RgbToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Title.TextColor3 = Color3.fromRGB(0, 210, 255); ToggleButton.TextColor3 = Color3.fromRGB(0, 210, 255)
+        end
+    end)
+
+    ShutdownButton.MouseButton1Click:Connect(function()
+        getgenv().AutoFarmAdvanced = false
+        getgenv().AutoRNGEvent = false
+        getgenv().RGB_Enabled = false
+        ScreenGui:Destroy()
+    end)
+
+    -- Уведомление об успешном запуске хаба
+    game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+        Text = "[LegendaHub]: Скрипт успешно прогружен на вашем чите!",
+        Color = Color3.fromRGB(75, 255, 75),
+        Font = Enum.Font.GothamBold,
+        TextSize = 14
+    })
 end)
 
--- ==========================================
--- КНОПКА ПОЛНОГО ЗАКРЫТИЯ СКРИПТА
--- ==========================================
-local ExitBtn = Instance.new("TextButton")
-ExitBtn.Parent = MainFrame
-ExitBtn.Position = UDim2.new(0.05, 0, 0.75, 0)
-ExitBtn.Size = UDim2.new(0.9, 0, 0, 35)
-ExitBtn.BackgroundColor3 = Color3.fromRGB(100, 20, 20)
-ExitBtn.Text = "ПОЛНОСТЬЮ ЗАКРЫТЬ СКРИПТ"
-ExitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-ExitBtn.MouseButton1Click:Connect(function()
-    getgenv().AutoFarm = false
-    getgenv().AutoRNG = false
-    ScreenGui:Destroy()
-end)
+-- Если pcall поймал ошибку в структуре экзекутора
+if not success then
+    reportErrorInChat(mainErrorMessage)
+end
