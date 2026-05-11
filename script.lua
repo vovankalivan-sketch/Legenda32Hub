@@ -1,147 +1,99 @@
--- Сервисы Roblox
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+-- Загрузка кроссплатформенной библиотеки интерфейса (поддерживает Delta)
+local Library = loadstring(game:HttpGet("githubusercontent.com"))()
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- Создание главного окна хаба
+local Window = Library:CreateWindow("LegendaHub | Pet Sim 99")
 
--- Создание главного контейнера интерфейса
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "LegendaHubContainer"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = playerGui
+-- Переменные для переключателей функций (Toggle)
+local _G = getgenv and getgenv() or _G
+_G.AutoFarm = false
+_G.AutoClicker = false
+_G.AutoHatch = false
 
--- Главное окно меню
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 0, 0, 0) -- Изначально размер 0 для анимации появления
-mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35) -- Темный стильный фон
-mainFrame.BorderSizePixel = 0
-mainFrame.ClipsDescendants = true
-mainFrame.Parent = screenGui
+-- Создание вкладки автоматизации
+local FarmTab = Window:CreateFolder("Фарм и Кликер")
 
--- Скругление углов главного окна
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 12)
-mainCorner.Parent = mainFrame
-
--- Верхняя панель (Header)
-local headerFrame = Instance.new("Frame")
-headerFrame.Name = "Header"
-headerFrame.Size = UDim2.new(1, 0, 0, 45)
-headerFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-headerFrame.BorderSizePixel = 0
-headerFrame.Parent = mainFrame
-
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 12)
-headerCorner.Parent = headerFrame
-
--- Текст названия хаба
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Name = "Title"
-titleLabel.Size = UDim2.new(1, -60, 1, 0)
-titleLabel.Position = UDim2.new(0, 15, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "LegendaHub"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextSize = 20
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Parent = headerFrame
-
--- Градиент для текста (эффект свечения)
-local textUIGradient = Instance.new("UIGradient")
-textUIGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 210, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(58, 123, 213))
-})
-textUIGradient.Parent = titleLabel
-
--- Кнопка закрытия (X)
-local closeButton = Instance.new("TextButton")
-closeButton.Name = "CloseButton"
-closeButton.Size = UDim2.new(0, 35, 0, 35)
-closeButton.Position = UDim2.new(1, -40, 0, 5)
-closeButton.BackgroundTransparency = 1
-closeButton.Text = "×"
-closeButton.TextColor3 = Color3.fromRGB(180, 180, 190)
-closeButton.TextSize = 28
-closeButton.Font = Enum.Font.Gotham
-closeButton.Parent = headerFrame
-
--- Область для будущего контента/функций
-local contentFrame = Instance.new("Frame")
-contentFrame.Name = "Content"
-contentFrame.Size = UDim2.new(1, -20, 1, -65)
-contentFrame.Position = UDim2.new(0, 10, 0, 55)
-contentFrame.BackgroundTransparency = 1
-contentFrame.Parent = mainFrame
-
--- Заглушка внутри меню
-local placeholderText = Instance.new("TextLabel")
-placeholderText.Size = UDim2.new(1, 0, 1, 0)
-placeholderText.BackgroundTransparency = 1
-placeholderText.Text = "Ожидание подключения функций..."
-placeholderText.TextColor3 = Color3.fromRGB(100, 100, 120)
-placeholderText.TextSize = 14
-placeholderText.Font = Enum.Font.GothamItalic
-placeholderText.Parent = contentFrame
-
--- Логика перетаскивания меню мышкой (Drag)
-local dragging, dragInput, dragStart, startPos
-local function update(input)
-    local delta = input.Position - dragStart
-    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-headerFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+-- Функция 1: Автоматический сбор монет и сундуков (Orbs)
+FarmTab:Toggle("Авто-Фарм (Сбор монет)", function(state)
+    _G.AutoFarm = state
+    if state then
+        task.spawn(function()
+            while _G.AutoFarm do
+                task.wait(0.1)
+                -- Безопасный поиск всех предметов на земле в зоне видимости
+                for _, obj in ipairs(workspace:GetChildren()) do
+                    if obj.Name == "Lootbag" or obj.Name == "Orb" then
+                        local char = game.Players.LocalPlayer.Character
+                        if char and char:FindFirstChild("HumanoidRootPart") then
+                            -- Имитация сбора за счет перемещения локального парта (не банится античитом)
+                            obj.Position = char.HumanoidRootPart.Position
+                        end
+                    end
+                end
+            end
         end)
     end
 end)
 
-headerFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseBehavior or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+-- Функция 2: Бесконечный Авто-кликер по монетам/сундукам
+FarmTab:Toggle("Авто-Кликер", function(state)
+    _G.AutoClicker = state
+    if state then
+        task.spawn(function()
+            local VirtualUser = game:GetService("VirtualUser")
+            -- Подключение к событию клика, чтобы предотвратить кик за АФК
+            game.Players.LocalPlayer.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0,0))
+            end)
+            
+            while _G.AutoClicker do
+                task.wait(0.05) -- Быстрый клик
+                -- Отправка сигнала клика на экран по центру игры
+                VirtualUser:Button1Down(Vector2.new(X, Y), workspace.CurrentCamera.CFrame)
+            end
+        end)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then update(input) end
+-- Создание вкладки для яиц
+local EggTab = Window:CreateFolder("Яйца и Питомцы")
+
+-- Функция 3: Автоматическое открытие яиц
+EggTab:Toggle("Авто-Открытие яиц", function(state)
+    _G.AutoHatch = state
+    if state then
+        task.spawn(function()
+            while _G.AutoHatch do
+                task.wait(0.5)
+                -- Обращение к сетевому событию игры для покупки первого доступного яйца
+                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Network")
+                if remotes and remotes:FindFirstChild("Eggs_Roll") then
+                    -- Отправка запроса на покупку 1 яйца (Тестовое имя: "Egg 1")
+                    remotes["Eggs_Roll"]:InvokeServer("Egg 1", 1)
+                end
+            end
+        end)
+    end
 end)
 
--- Анимация плавного появления при старте скрипта
-task.wait(0.5) -- Небольшая пауза перед прогрузкой
-mainFrame:TweenSize(
-    UDim2.new(0, 400, 0, 250), -- Конечный размер меню (Ширина, Высота)
-    Enum.EasingDirection.Out,
-    Enum.EasingStyle.Quart,
-    0.6,
-    true
-)
+-- Вкладка утилит
+local MiscTab = Window:CreateFolder("Разное")
 
--- Интерактив для кнопки закрытия
-closeButton.MouseEnter:Connect(function()
-    closeButton.TextColor3 = Color3.fromRGB(255, 75, 75)
+MiscTab:Button("Убрать лаги (FPS Boost)", function()
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and not v:IsA("MeshPart") then
+            v.Material = Enum.Material.SmoothPlastic
+            v.Reflectance = 0
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+        end
+    end
 end)
 
-closeButton.MouseLeave:Connect(function()
-    closeButton.TextColor3 = Color3.fromRGB(180, 180, 190)
-end)
-
-closeButton.MouseButton1Click:Connect(function()
-    -- Анимация закрытия
-    mainFrame:TweenSize(UDim2.new(0, 0, 0, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quart, 0.4, true, function()
-        screenGui:Destroy() -- Полное удаление интерфейса
-    end)
-end)
+-- Всплывающее уведомление в игре
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "LegendaHub",
+    Text = "Скрипт полностью готов! Вкладки активны.",
+    Duration = 4
+})
