@@ -1,4 +1,4 @@
--- Авто-удаление прошлой версии хаба
+-- Авто-удаление прошлой версии хаба при перезапуске
 if game:GetService("CoreGui"):FindFirstChild("LegendaHubFinal") then
     game:GetService("CoreGui"):FindFirstChild("LegendaHubFinal"):Destroy()
 end
@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 -- Глобальные настройки функций
 local _G = getgenv and getgenv() or _G
@@ -22,7 +23,7 @@ ScreenGui.Name = "LegendaHubFinal"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 -- ==========================================
--- ПОЛНОСТЬЮ РАБОЧАЯ ПЕРЕТАСКИВАЕМАЯ КНОПКА «L»
+-- ИСПРАВЛЕННАЯ ПЕРЕТАСКИВАЕМАЯ КНОПКА «L»
 -- ==========================================
 local ToggleButton = Instance.new("TextButton")
 local ButtonCorner = Instance.new("UICorner")
@@ -40,8 +41,8 @@ ToggleButton.Font = Enum.Font.GothamBold
 ButtonCorner.CornerRadius = UDim.new(1, 0)
 ButtonCorner.Parent = ToggleButton
 
--- Новый безошибочный алгоритм перетаскивания (Touch / Mouse drag)
-local dragging, dragInput, dragStart, startPos
+-- Алгоритм перетаскивания без ошибок координат
+local dragging, dragStart, startPos
 ToggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
@@ -52,8 +53,10 @@ end)
 
 UserInputService.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseBehavior or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        ToggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        if input.Position then
+            local delta = input.Position - dragStart
+            ToggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
     end
 end)
 
@@ -64,7 +67,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- ==========================================
--- ОСНОВНОЕ ОКНО
+-- ОСНОВНОЕ ОКНО С АНИМАЦИЯМИ
 -- ==========================================
 local MainFrame = Instance.new("Frame")
 local MainCorner = Instance.new("UICorner")
@@ -72,9 +75,10 @@ local MainCorner = Instance.new("UICorner")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
-MainFrame.Size = UDim2.new(0, 320, 0, 240)
+MainFrame.Size = UDim2.new(0, 0, 0, 0) -- Изначально 0 для плавного появления
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-MainFrame.Visible = true
+MainFrame.ClipsDescendants = true -- Скрывает элементы пока окно маленькое
+MainFrame.Visible = false
 
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
@@ -89,28 +93,47 @@ Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = MainFrame
 
--- Открытие / Закрытие фрейма при клике на L
-ToggleButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
+-- Настройки анимации появления (Tween)
+local isMenuOpen = false
+local function toggleMenuAnimation()
+    if not isMenuOpen then
+        MainFrame.Visible = true
+        MainFrame:TweenSize(
+            UDim2.new(0, 320, 0, 260), -- Целевой размер
+            Enum.EasingDirection.Out,
+            Enum.EasingStyle.Quart,
+            0.4,
+            true
+        )
+        isMenuOpen = true
+    else
+        MainFrame:TweenSize(
+            UDim2.new(0, 0, 0, 0),
+            Enum.EasingDirection.In,
+            Enum.EasingStyle.Quart,
+            0.3,
+            true,
+            function()
+                MainFrame.Visible = false
+            end
+        )
+        isMenuOpen = false
+    end
+end
 
--- Кнопка полного удаления скрипта (Крестик)
-local DestroyScriptButton = Instance.new("TextButton")
-DestroyScriptButton.Parent = MainFrame
-DestroyScriptButton.Size = UDim2.new(0, 30, 0, 30)
-DestroyScriptButton.Position = UDim2.new(1, -35, 0, 5)
-DestroyScriptButton.BackgroundTransparency = 1
-DestroyScriptButton.Text = "×"
-DestroyScriptButton.TextColor3 = Color3.fromRGB(255, 75, 75)
-DestroyScriptButton.TextSize = 24
-DestroyScriptButton.Font = Enum.Font.GothamBold
+ToggleButton.MouseButton1Click:Connect(toggleMenuAnimation)
 
-DestroyScriptButton.MouseButton1Click:Connect(function()
-    _G.AutoFarmCurrentZone = false
-    _G.AutoRNGEvent = false
-    _G.RGB_Enabled = false
-    ScreenGui:Destroy()
-end)
+-- Кнопка быстрого закрытия в углу (Крестик)
+local QuickClose = Instance.new("TextButton")
+QuickClose.Parent = MainFrame
+QuickClose.Size = UDim2.new(0, 30, 0, 30)
+QuickClose.Position = UDim2.new(1, -35, 0, 5)
+QuickClose.BackgroundTransparency = 1
+QuickClose.Text = "×"
+QuickClose.TextColor3 = Color3.fromRGB(255, 75, 75)
+QuickClose.TextSize = 24
+QuickClose.Font = Enum.Font.GothamBold
+QuickClose.MouseButton1Click:Connect(toggleMenuAnimation)
 
 -- ==========================================
 -- НАВИГАЦИЯ ВКЛАДОК
@@ -232,27 +255,26 @@ FarmToggle.MouseButton1Click:Connect(function()
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 
                 if root then
-                    StatusLabel.Text = "Статус: Притягиваем сферы на вашей позиции"
+                    StatusLabel.Text = "Статус: Поиск сфер в папке Network..."
+                    local networkFolder = Workspace:FindFirstChild("Network")
+                    local orbsFolder = networkFolder and networkFolder:FindFirstChild("Orbs")
                     
-                    -- В PS99 все выпавшие сферы лежат строго в папке Workspace.Network.Orbs
-                    local orbsFolder = Workspace:FindFirstChild("Network") and Workspace.Network:FindFirstChild("Orbs")
-                    if orbsFolder then
+                    if orbsFolder and #orbsFolder:GetChildren() > 0 then
                         for _, orb in ipairs(orbsFolder:GetChildren()) do
                             if orb:IsA("BasePart") then
-                                -- Принудительно стягиваем все сферы прямо в карман игрока
                                 orb.CFrame = root.CFrame
                             end
                         end
                     else
-                        -- Резервный метод сбора на случай изменения пути разработчиками
+                        -- Универсальный метод, если папка пуста
                         for _, obj in ipairs(Workspace:GetChildren()) do
                             if (obj.Name == "Orb" or obj.Name == "Lootbag") and obj:IsA("BasePart") then
-                                obj.Position = root.Position
+                                obj.CFrame = root.CFrame
                             end
                         end
                     end
                 end
-                task.wait(0.1) -- Максимально быстрый сбор сфер
+                task.wait(0.1)
             end
         end)
     else
@@ -313,10 +335,10 @@ RngToggle.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- КОНТЕНТ: НАСТРОЙКИ (RGB РЕЖИМ)
+-- КОНТЕНТ: НАСТРОЙКИ (RGB И ПОЛНОЕ ЗАКРЫТИЕ)
 -- ==========================================
 local RgbToggle = Instance.new("TextButton")
-RgbToggle.Size = UDim2.new(1, 0, 0, 45)
+RgbToggle.Size = UDim2.new(1, 0, 0, 40)
 RgbToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 RgbToggle.Text = "Включить Переливающийся RGB: ВЫКЛ"
 RgbToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -325,10 +347,22 @@ RgbToggle.TextSize = 11
 RgbToggle.Parent = SettingsContent
 Instance.new("UICorner", RgbToggle).CornerRadius = UDim.new(0, 6)
 
--- Логика плавного перелива цветов RGB
+-- Новая кнопка полной выгрузки скрипта
+local ShutdownButton = Instance.new("TextButton")
+ShutdownButton.Size = UDim2.new(1, 0, 0, 40)
+ShutdownButton.Position = UDim2.new(0, 0, 0, 50)
+ShutdownButton.BackgroundColor3 = Color3.fromRGB(60, 25, 25)
+ShutdownButton.Text = "ПОЛНОСТЬЮ ЗАКРЫТЬ СКРИПТ"
+ShutdownButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+ShutdownButton.Font = Enum.Font.GothamBold
+ShutdownButton.TextSize = 11
+ShutdownButton.Parent = SettingsContent
+Instance.new("UICorner", ShutdownButton).CornerRadius = UDim.new(0, 6)
+
+-- Логика перелива RGB
 RunService.RenderStepped:Connect(function()
     if _G.RGB_Enabled then
-        local hue = (tick() % 4) / 4 -- Скорость перелива
+        local hue = (tick() % 4) / 4
         local color = Color3.fromHSV(hue, 1, 1)
         Title.TextColor3 = color
         ToggleButton.TextColor3 = color
@@ -346,4 +380,12 @@ RgbToggle.MouseButton1Click:Connect(function()
         Title.TextColor3 = Color3.fromRGB(0, 210, 255)
         ToggleButton.TextColor3 = Color3.fromRGB(0, 210, 255)
     end
+end)
+
+-- Функция полной очистки при нажатии на большую красную кнопку
+ShutdownButton.MouseButton1Click:Connect(function()
+    _G.AutoFarmCurrentZone = false
+    _G.AutoRNGEvent = false
+    _G.RGB_Enabled = false
+    ScreenGui:Destroy() -- Полное удаление UI элементов и остановка процессов
 end)
