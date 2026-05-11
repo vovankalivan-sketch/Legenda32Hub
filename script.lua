@@ -1,5 +1,5 @@
 -- ====================================================================
--- ULTIMATE LEGENDA32HUB V46 | ПОЛНАЯ СБОРКА С ХОДЬБОЙ, КРАФТОМ И БУСТАМИ
+-- LEGENDA32HUB V50 | АВТОНОМНЫЙ НЕЙРО-АГЕНТ И ВСТРОЕННЫЙ ИИ-ЧАТ
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -10,38 +10,90 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local PathfindingService = game:GetService("PathfindingService")
 
--- Жесткая очистка старых версий GUI
-if LocalPlayer.PlayerGui:FindFirstChild("LegendaHubOmniAI") then 
-    LocalPlayer.PlayerGui.LegendaHubOmniAI:Destroy() 
+-- Принудительное удаление старых GUI при перезапуске
+if LocalPlayer.PlayerGui:FindFirstChild("LegendaHubNeuroDrive") then 
+    LocalPlayer.PlayerGui.LegendaHubNeuroDrive:Destroy() 
 end
 
 -- Инициализация глобального ИИ-окружения
-getgenv().OmniAI_Autopilot = false
-getgenv().AutoBoosts = false
-getgenv().AutoPetCraft = false
-getgenv().HighJump = false
+getgenv().NeuroAI_Active = false
 getgenv().RGB_Enabled = false
-getgenv().TargetZoneID = "38" -- Главная рабочая цель ИИ (Icy Peaks)
+getgenv().TargetZoneID = "38"
 
--- Матрица ошибок (1-не работает, 2-ошибка патча, 3-функция недоступна)
+-- Матрица вывода ошибок (1-не работает, 2-ошибка патча, 3-функция недоступна)
 local function reportHubError(funcName, errorCode)
     pcall(function()
-        local desc = { [1] = "Критический сбой ИИ", [2] = "Карта изменена патчем", [3] = "Блокировка движка" }
+        local desc = { [1] = "Сбой нейромодуля", [2] = "Изменение геометрии мира", [3] = "Движок заблокировал ввод" }
         game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-            Text = string.format("[Legenda32Hub AI ERROR] %s -> Код %d: %s", funcName, errorCode, desc[errorCode]),
+            Text = string.format("[Legenda32Hub ERROR] %s -> Код %d: %s", funcName, errorCode, desc[errorCode]),
             Color = Color3.fromRGB(255, 75, 75), Font = Enum.Font.GothamBold, TextSize = 13
         })
     end)
 end
 
--- УМНЫЙ ПОИСК ЗОНЫ НА ЛЮБЫХ СЕРВЕРАХ
-local function AI_ScanForZone(zoneID)
-    local folders = { Workspace:FindFirstChild("Map"), Workspace:FindFirstChild("ActiveZones"), Workspace:FindFirstChild("Zones") }
-    for _, f in ipairs(folders) do
-        if f then
-            for _, z in ipairs(f:GetChildren()) do
-                if z.Name:match("^" .. tostring(zoneID) .. "%s") or z.Name == tostring(zoneID) then
-                    return z
+-- ==========================================
+-- ИИ-ЯДРО КРОСС-ПЛАТФОРМЕННОЙ НАВИГАЦИИ (RAYCAST)
+-- ==========================================
+local function AI_NeuroWalkTo(targetPosition, statusLabel)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return end
+    
+    local path = PathfindingService:CreatePath({AgentRadius = 2.5, AgentHeight = 5.5, AgentCanJump = true})
+    local success, _ = pcall(function() path:ComputeAsync(root.Position, targetPosition) end)
+    
+    if success and path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
+        for _, waypoint in ipairs(waypoints) do
+            if not getgenv().NeuroAI_Active then break end
+            
+            -- Сканирование пространства лазерными лучами на 8 метров вперед
+            local rayDirection = (waypoint.Position - root.Position).Unit * 8
+            local params = RaycastParams.new()
+            params.FilterDescendantsInstances = {char, Workspace:FindFirstChild("Network")}
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            
+            local hit = Workspace:Raycast(root.Position, rayDirection, params)
+            if hit and hit.Instance and hit.Instance.CanCollide then
+                statusLabel.Text = "Агент: Вижу препятствие! Корректирую шаги..."
+                hum.Jump = true
+                local escapeVector = Vector3.new(-rayDirection.Z, 0, rayDirection.X).Unit * 4
+                hum:MoveTo(root.Position + escapeVector)
+                task.wait(0.15)
+            end
+            
+            if waypoint.Action == Enum.WaypointAction.Jump then hum.Jump = true end
+            hum:MoveTo(waypoint.Position)
+            
+            -- Контроль застревания
+            local dist = (root.Position - waypoint.Position).Magnitude
+            local t = 0
+            while dist > 3.5 and getgenv().NeuroAI_Active and t < 10 do
+                task.wait(0.05)
+                dist = (root.Position - waypoint.Position).Magnitude
+                t = t + 1
+            end
+            
+            if t >= 10 then
+                hum.Jump = true
+                hum:MoveTo(root.Position + Vector3.new(math.random(-5,5), 0, math.random(-5,5)))
+                task.wait(0.2)
+            end
+        end
+    else
+        reportHubError("NeuroWalk", 1)
+    end
+end
+
+-- ДИНАМИЧЕСКИЙ СКАНЕР ЛОКАЦИЙ ИГРЫ
+local function AI_LocateMapZone(zoneID)
+    local searchFolders = { Workspace:FindFirstChild("Map"), Workspace:FindFirstChild("ActiveZones"), Workspace:FindFirstChild("Zones") }
+    for _, folder in ipairs(searchFolders) do
+        if folder then
+            for _, child in ipairs(folder:GetChildren()) do
+                if child.Name:match("^" .. tostring(zoneID) .. "%s") or child.Name == tostring(zoneID) then
+                    return child
                 end
             end
         end
@@ -49,64 +101,11 @@ local function AI_ScanForZone(zoneID)
     return nil
 end
 
--- ИИ-АЛГОРИТМ НАВИГАЦИИ И УМНОГО ОБХОДА ПРЕПЯТСТВИЙ СКАНИРОВАНИЕМ ВПЕРЕД
-local function AI_SmartWalkTo(targetPosition, statusLabel)
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not hum or not root then return end
-    
-    local path = PathfindingService:CreatePath({AgentRadius = 3, AgentHeight = 6, AgentCanJump = true})
-    local success, _ = pcall(function() path:ComputeAsync(root.Position, targetPosition) end)
-    
-    if success and path.Status == Enum.PathStatus.Success then
-        local waypoints = path:GetWaypoints()
-        for _, waypoint in ipairs(waypoints) do
-            if not getgenv().OmniAI_Autopilot then break end
-            
-            -- ИИ-Raycasting: Сканируем препятствия "наперед" (на 7 метров перед персонажем)
-            local rayDirection = (waypoint.Position - root.Position).Unit * 7
-            local params = RaycastParams.new()
-            params.FilterDescendantsInstances = {char, Workspace:FindFirstChild("Network")}
-            params.FilterType = Enum.RaycastFilterType.Exclude
-            
-            local hit = Workspace:Raycast(root.Position, rayDirection, params)
-            if hit then
-                statusLabel.Text = "ИИ [Навигация]: Препятствие! Обхожу сбоку..."
-                hum.Jump = true -- Легитный прыжок
-                local escapeVector = Vector3.new(-rayDirection.Z, 0, rayDirection.X).Unit * 4
-                hum:MoveTo(root.Position + escapeVector)
-                task.wait(0.2)
-            end
-            
-            if waypoint.Action == Enum.WaypointAction.Jump then hum.Jump = true end
-            hum:MoveTo(waypoint.Position)
-            
-            -- Проверка зависания / застревания бота
-            local dist = (root.Position - waypoint.Position).Magnitude
-            local t = 0
-            while dist > 4 and getgenv().OmniAI_Autopilot and t < 8 do
-                task.wait(0.05)
-                dist = (root.Position - waypoint.Position).Magnitude
-                t = t + 1
-            end
-            
-            -- Экстренная расфиксация застрявшего ИИ
-            if t >= 8 then
-                statusLabel.Text = "ИИ [Навигация]: Корректировка застревания..."
-                hum.Jump = true
-                hum:MoveTo(root.Position + Vector3.new(math.random(-6,6), 0, math.random(-6,6)))
-                task.wait(0.2)
-            end
-        end
-    else
-        reportHubError("Pathfinding", 1)
-    end
-end
-
--- СОЗДАНИЕ ИНТЕРФЕЙСА
+-- ==========================================
+-- ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА СИСТЕМЫ
+-- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LegendaHubOmniAI"
+ScreenGui.Name = "LegendaHubNeuroDrive"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -124,7 +123,7 @@ ToggleButton.Font = Enum.Font.GothamBold
 ButtonCorner.CornerRadius = UDim.new(0, 10)
 ButtonCorner.Parent = ToggleButton
 
--- Плавное мобильное перетаскивание кнопки пальцем
+-- Безлаговый drag кнопки L пальцем
 local dragging, dragStart, startPos
 ToggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -155,7 +154,7 @@ MainCorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundTransparency = 1
-Title.Text = "  Legenda32Hub | ИИ-Автопилот v46"
+Title.Text = "  Legenda32Hub | NeuroDrive v50"
 Title.TextColor3 = Color3.fromRGB(0, 210, 255)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
@@ -171,18 +170,18 @@ TabNavFrame.Size = UDim2.new(1, -16, 0, 30)
 TabNavFrame.BackgroundTransparency = 1
 TabNavFrame.Parent = MainFrame
 
-local tabs = {"Автопилот", "Опции"}
+local tabs = {"Автопилот", "ИИ-Чат", "Опции"}
 local tabFrames = {}
 local tabButtons = {}
 
 for i, tabName in ipairs(tabs) do
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.48, 0, 1, 0)
-    btn.Position = UDim2.new((i-1)*0.50, 0, 0, 0)
+    btn.Size = UDim2.new(0.32, 0, 1, 0)
+    btn.Position = UDim2.new((i-1)*0.33, 0, 0, 0)
     btn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
     btn.Text = tabName
     btn.TextColor3 = Color3.fromRGB(140, 140, 140)
-    btn.Font = Enum.Font.GothamBold; btn.TextSize = 11; btn.Parent = TabNavFrame
+    btn.Font = Enum.Font.GothamBold; btn.TextSize = 10; btn.Parent = TabNavFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
     
     local content = Instance.new("Frame")
@@ -200,12 +199,12 @@ end
 tabButtons["Автопилот"].BackgroundColor3 = Color3.fromRGB(40, 40, 55); tabButtons["Автопилот"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
 -- ==========================================
--- ЦЕНТРАЛЬНОЕ ЯДРО ИИ-АВТОПИЛОТА (OMNIAI)
+-- ВКЛАДКА 1: НЕЙРО-АВТОПИЛОТ
 -- ==========================================
 local AiToggle = Instance.new("TextButton")
 AiToggle.Size = UDim2.new(1, 0, 0, 40)
 AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-AiToggle.Text = "ЗАПУСТИТЬ ИИ-АВТОПИЛОТ: ВЫКЛ"
+AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВЫКЛ"
 AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
 AiToggle.Font = Enum.Font.GothamBold; AiToggle.TextSize = 11; AiToggle.Parent = tabFrames["Автопилот"]
 Instance.new("UICorner", AiToggle).CornerRadius = UDim.new(0, 6)
@@ -213,88 +212,51 @@ Instance.new("UICorner", AiToggle).CornerRadius = UDim.new(0, 6)
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Position = UDim2.new(0, 0, 0, 45); StatusLabel.Size = UDim2.new(1, 0, 0, 60)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "ИИ: Спит.\nАнти-АФК: Защита активна.\nМониторинг сети: Готов."
+StatusLabel.Text = "Агент: Спит.\nОценка 3D мира: Готов к анализу.\nБаза лингвистики чата: Загружена."
 StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160); StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextSize = 11; StatusLabel.TextXAlignment = Enum.TextXAlignment.Left; StatusLabel.Parent = tabFrames["Автопилот"]
 
 AiToggle.MouseButton1Click:Connect(function()
-    getgenv().OmniAI_Autopilot = not getgenv().OmniAI_Autopilot
-    if getgenv().OmniAI_Autopilot then
-        AiToggle.Text = "ЗАПУСТИТЬ ИИ-АВТОПИЛОТ: ВКЛ"
+    getgenv().NeuroAI_Active = not getgenv().NeuroAI_Active
+    if getgenv().NeuroAI_Active then
+        AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВКЛ"
         AiToggle.TextColor3 = Color3.fromRGB(75, 255, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
         
         task.spawn(function()
             local vu = game:GetService("VirtualUser")
+            local afkLoop = LocalPlayer.Idled:Connect(function() vu:CaptureController(); vu:ClickButton2(Vector2.new(0,0)) end)
             
-            -- Подключение легитного Анти-АФК
-            local afkLoop = LocalPlayer.Idled:Connect(function()
-                vu:CaptureController(); vu:ClickButton2(Vector2.new(0,0))
-            end)
-            
-            while getgenv().OmniAI_Autopilot do
+            while getgenv().NeuroAI_Active do
                 pcall(function()
                     local net = ReplicatedStorage:FindFirstChild("Network")
                     
-                    -- Сбор бесплатных подарков
+                    -- Сбор подарков
                     local claimGift = net and (net:FindFirstChild("Rewards_ClaimGifts") or net:FindFirstChild("FreeRewards_Claim"))
                     if claimGift then for i = 1, 12 do claimGift:FireServer(i) end end
                     
-                    -- Автоматический RNG ролл
+                    -- RNG ролл
                     local roll = net and (net:FindFirstChild("RNG_Roll") or net:FindFirstChild("RNG_Event_Roll") or net:FindFirstChild("VoidRNG_Roll"))
                     if roll then roll:InvokeServer() end
                     
-                    -- Автоматический крафт Lucky Dice
-                    local craft = net and (net:FindFirstChild("RNG_CraftDice") or net:FindFirstChild("RNG_LuckyDice_Upgrade"))
-                    if craft then craft:InvokeServer("Lucky Dice", 1) end
-                    
-                    -- Авто-покупка скорости прокрутки
-                    local upg = net and net:FindFirstChild("RNG_PurchaseUpgrade")
-                    if upg then upg:InvokeServer("Roll Speed", 1) end
-                    
-                    -- [НОВАЯ ФУНКЦИЯ 16]: АВТО-АКТИВАЦИЯ БУСТОВ И ФРУКТОВ ИЗ ИНВЕНТАРЯ
-                    if getgenv().AutoBoosts then
-                        local consumeRemote = net and (net:FindFirstChild("Booster_Consume") or net:FindFirstChild("Potions_Use") or net:FindFirstChild("Fruits_Eat"))
-                        if consumeRemote then
-                            -- ИИ прожимает базовые типы баффов для увеличения x5 фарма
-                            consumeRemote:FireServer("Apple", 1)
-                            consumeRemote:FireServer("Orange", 1)
-                            consumeRemote:FireServer("Coins Potion", 1)
-                        end
-                    end
-
-                    -- [НОВАЯ ФУНКЦИЯ 17]: АВТО-КРАФТ ПИТОМЦЕВ В ЗОЛОТЫЕ/РАДУЖНЫЕ
-                    if getgenv().AutoPetCraft then
-                        local goldRemote = net and (net:FindFirstChild("GoldPets_Machine") or net:FindFirstChild("Pets_MakeGold"))
-                        if goldRemote then
-                            -- Запрос серверу на слияние всех дубликатов низкого уровня
-                            goldRemote:FireServer()
-                        end
-                    end
-                    
-                    -- Анализ позиции и перемещение
-                    local targetZoneInstance = AI_ScanForZone(getgenv().TargetZoneID)
-                    
-                    if targetZoneInstance then
-                        local dest = targetZoneInstance:GetPivot().Position
+                    -- Анализ позиции и легитный бег
+                    local zoneObj = AI_LocateMapZone(getgenv().TargetZoneID)
+                    if zoneObj then
+                        local dest = zoneObj:GetPivot().Position
                         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        
                         if root then
-                            local distanceToZone = (root.Position - dest).Magnitude
-                            if distanceToZone > 55 then
-                                statusLabel.Text = "ИИ [Навигация]: Строю маршрут до Зоны 38..."
-                                AI_SmartWalkTo(dest, statusLabel)
+                            if (root.Position - dest).Magnitude > 50 then
+                                StatusLabel.Text = "Агент [Действие]: Позиция нарушена. Бегу в Зону 38..."
+                                AI_NeuroWalkTo(dest, StatusLabel)
                             else
-                                statusLabel.Text = "ИИ [Статус]: Активно фармлю внутри Зоны 38!"
+                                StatusLabel.Text = "Агент [Действие]: Стою в Зоне 38. Анализирую монеты."
                             end
                         end
-                    else
-                        statusLabel.Text = "ИИ [Внимание]: Карта еще прогружается сервером..."
                     end
                     
-                    -- Легитные тапы по экрану
+                    -- Легитные физические клики
                     vu:Button1Down(Vector2.new(200, 200), workspace.CurrentCamera.CFrame)
                     
-                    -- Легитный сбор сфер на месте
+                    -- Сбор сфер в радиусе шага
                     for _, obj in ipairs(Workspace:GetChildren()) do
                         if (obj.Name == "Orb" or obj.Name == "Lootbag") and obj:IsA("BasePart") then
                             local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -304,57 +266,102 @@ AiToggle.MouseButton1Click:Connect(function()
                         end
                     end
                 end)
-                
                 task.wait(0.2)
             end
             if afkLoop then afkLoop:Disconnect() end
         end)
     else
-        AiToggle.Text = "ЗАПУСТИТЬ ИИ-АВТОПИЛОТ: ВЫКЛ"
+        AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВЫКЛ"
         AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-        StatusLabel.Text = "ИИ: Спит.\nАнти-АФК: Защита активна.\nМониторинг сети: Готов."
+        StatusLabel.Text = "Агент: Спит.\nОценка 3D мира: Готов к анализу."
     end
 end)
 
 -- ==========================================
--- ВАКЛАДКА ОПЦИИ И ДОПОЛНИТЕЛЬНЫЕ ТУМБЛЕРЫ
+-- ВКЛАДКА 2: ВСТРОЕННЫЙ ИИ-ЧАТ (ИНТЕГРАЦИЯ С АГЕНТОМ)
 -- ==========================================
-local function createOptionToggle(text, flagName, yPos)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 30)
-    btn.Position = UDim2.new(0, 0, 0, yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    btn.Text = text .. ": ВЫКЛ"
-    btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-    btn.Font = Enum.Font.GothamBold; btn.TextSize = 10; btn.Parent = tabFrames["Опции"]
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-    
-    btn.MouseButton1Click:Connect(function()
-        getgenv()[flagName] = not getgenv()[flagName]
-        if getgenv()[flagName] then
-            btn.Text = text .. ": ВКЛ"; btn.TextColor3 = Color3.fromRGB(100, 255, 100)
-            if flagName == "HighJump" then
-                pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 90 end)
-            end
-        else
-            btn.Text = text .. ": ВЫКЛ"; btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-            if flagName == "HighJump" then
-                pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 50 end)
-            end
-        end
-    end)
-end
+local ChatFrame = tabFrames["ИИ-Чат"]
 
-createOptionToggle("Авто-Поедание фруктов/зелий (x5 Фарм)", "AutoBoosts", 0)
-createOptionToggle("Авто-Слияние питомцев в Золотые", "AutoPetCraft", 35)
-createOptionToggle("[Игрок] Высокий Легитный Прыжок", "HighJump", 70)
-createOptionToggle("Переливающийся RGB режим", "RGB_Enabled", 105)
+local ChatLog = Instance.new("TextLabel")
+ChatLog.Size = UDim2.new(1, 0, 0, 75)
+ChatLog.Position = UDim2.new(0, 0, 0, 0)
+ChatLog.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+ChatLog.Text = "ИИ: Привет! Я твой ассистент Legenda32Hub. Задай мне вопрос или отправь команду (фарм, статус, зона, привет)."
+ChatLog.TextColor3 = Color3.fromRGB(200, 200, 200)
+ChatLog.TextSize = 10
+ChatLog.Font = Enum.Font.Gotham
+ChatLog.TextWrapped = true
+ChatLog.TextXAlignment = Enum.TextXAlignment.Left
+ChatLog.TextYAlignment = Enum.TextYAlignment.Top
+ChatLog.Parent = ChatFrame
+Instance.new("UICorner", ChatLog).CornerRadius = UDim.new(0, 6)
+
+local ChatInput = Instance.new("TextBox")
+ChatInput.Size = UDim2.new(1, 0, 0, 32)
+ChatInput.Position = UDim2.new(0, 0, 0, 80)
+ChatInput.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+ChatInput.PlaceholderText = "Напишите сообщение ИИ агенту..."
+ChatInput.Text = ""
+ChatInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+ChatInput.Font = Enum.Font.GothamBold
+ChatInput.TextSize = 11
+ChatInput.Parent = ChatFrame
+Instance.new("UICorner", ChatInput).CornerRadius = UDim.new(0, 5)
+
+-- База локальных лингвистических правил для ИИ-чата (NLP Core)
+ChatInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed and ChatInput.Text ~= "" then
+        local userText = ChatInput.Text:lower()
+        ChatInput.Text = "" -- Очищаем поле ввода
+        
+        local botResponse = "ИИ: Извини, я не понял эту фразу. Попробуй ключевые слова: статус, фарм, зона, привет."
+        
+        -- Логические триггеры лингвистического процессора
+        if userText:find("привет") or userText:find("ку") or userText:find("hello") then
+            botResponse = "ИИ: Приветствую! Готов к выполнению задач. Я полностью автономен."
+        elseif userText:find("статус") or userText:find("как дела") or userText:find("работа") then
+            if getgenv().NeuroAI_Active then
+                botResponse = "ИИ: Текущий статус: АКТИВЕН. Сканирую пространство, собираю ресурсы в зоне " .. getgenv().TargetZoneID .. ", полет нормальный!"
+            else
+                botResponse = "ИИ: Текущий статус: СПИТ. Нажмите кнопку на первой вкладке, чтобы активировать мои алгоритмы."
+            end
+        elseif userText:find("фарм") or userText:find("включи") or userText:find("запуск") then
+            getgenv().NeuroAI_Active = true
+            AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВКЛ"
+            AiToggle.TextColor3 = Color3.fromRGB(75, 255, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
+            botResponse = "ИИ: Понял вас! Команда принята. Запускаю ИИ-Автопилот и перехожу в режим фарма."
+        elseif userText:find("зона") or userText:find("где ты") or userText:find("локация") then
+            local currentPos = "неизвестно"
+            pcall(function()
+                local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if root then currentPos = tostring(math.floor(root.Position.X)) .. ", " .. tostring(math.floor(root.Position.Z)) end
+            end)
+            botResponse = "ИИ: Моя целевая точка — Зона " .. getgenv().TargetZoneID .. " (Icy Peaks). Мои физические координаты в 3D мире: " .. currentPos
+        elseif userText:find("выключи") or userText:find("стоп") then
+            getgenv().NeuroAI_Active = false
+            AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВЫКЛ"
+            AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
+            botResponse = "ИИ: Понял. Останавливаю фоновые процессы и перевожу нейромодули в режим ожидания."
+        end
+        
+        ChatLog.Text = "Вы: " .. userText .. "\n" .. botResponse
+    end
+end)
+
+-- ==========================================
+-- ВКЛАДКА 3: ОПЦИИ И ЗАКРЫТИЕ
+-- ==========================================
+local RgbToggle = Instance.new("TextButton")
+RgbToggle.Size = UDim2.new(1, 0, 0, 40); RgbToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+RgbToggle.Text = "Включить RGB подсветку: ВЫКЛ"; RgbToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+RgbToggle.Font = Enum.Font.GothamBold; RgbToggle.TextSize = 11; RgbToggle.Parent = tabFrames["Опции"]
+Instance.new("UICorner", RgbToggle).CornerRadius = UDim.new(0, 6)
 
 local ShutdownButton = Instance.new("TextButton")
-ShutdownButton.Size = UDim2.new(1, 0, 0, 30); ShutdownButton.Position = UDim2.new(0, 0, 0, 140)
+ShutdownButton.Size = UDim2.new(1, 0, 0, 40); ShutdownButton.Position = UDim2.new(0, 0, 0, 50)
 ShutdownButton.BackgroundColor3 = Color3.fromRGB(65, 25, 25); ShutdownButton.Text = "ПОЛНОСТЬЮ ОТКЛЮЧИТЬ ИИ-БОТА"
-ShutdownButton.TextColor3 = Color3.fromRGB(255, 100, 100); ShutdownButton.Font = Enum.Font.GothamBold; ShutdownButton.TextSize = 10; ShutdownButton.Parent = tabFrames["Опции"]
-Instance.new("UICorner", ShutdownButton).CornerRadius = UDim.new(0, 5)
+ShutdownButton.TextColor3 = Color3.fromRGB(255, 100, 100); ShutdownButton.Font = Enum.Font.GothamBold; ShutdownButton.TextSize = 11; ShutdownButton.Parent = tabFrames["Опции"]
+Instance.new("UICorner", ShutdownButton).CornerRadius = UDim.new(0, 6)
 
 RunService.RenderStepped:Connect(function()
     if getgenv().RGB_Enabled then
@@ -363,14 +370,22 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-ShutdownButton.MouseButton1Click:Connect(function()
-    getgenv().OmniAI_Autopilot = false; getgenv().RGB_Enabled = false; getgenv().AutoBoosts = false; getgenv().AutoPetCraft = false;
-    pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 50 end)
-    ScreenGui:Destroy()
+RgbToggle.MouseButton1Click:Connect(function()
+    getgenv().RGB_Enabled = not getgenv().RGB_Enabled
+    if getgenv().RGB_Enabled then
+        RgbToggle.Text = "Включить RGB подсветку: ВКЛ"; RgbToggle.TextColor3 = Color3.fromRGB(75, 255, 75)
+    else
+        RgbToggle.Text = "Включить RGB подсветку: ВЫКЛ"; RgbToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Title.TextColor3 = Color3.fromRGB(0, 210, 255); ToggleButton.TextColor3 = Color3.fromRGB(0, 210, 255)
+    end
 end)
 
--- Уведомление в чат
+ShutdownButton.MouseButton1Click:Connect(function()
+    getgenv().NeuroAI_Active = false; getgenv().RGB_Enabled = false; ScreenGui:Destroy()
+end)
+
+-- Системное уведомление
 game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-    Text = "[Legenda32Hub]: Сборка v46 успешно обновлена. Функции 16, 17, 18 активны!",
+    Text = "[Legenda32Hub]: Сборка v50 с локальным NLP ИИ-чатом успешно запущена в Delta Executor!",
     Color = Color3.fromRGB(75, 255, 75), Font = Enum.Font.GothamBold, TextSize = 14
 })
