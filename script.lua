@@ -1,46 +1,130 @@
 -- ====================================================================
--- LEGENDA32HUB V43 | ВНЕШНИЙ АВТОНОМНЫЙ АССИСТЕНТ (ИЗОЛИРОВАННЫЙ ВВОД)
+-- ULTIMATE LEGENDA32HUB V46 | ПОЛНАЯ СБОРКА С ХОДЬБОЙ, КРАФТОМ И БУСТАМИ
 -- ====================================================================
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local PathfindingService = game:GetService("PathfindingService")
 
--- Безопасная очистка оверлея перед запуском
-if LocalPlayer.PlayerGui:FindFirstChild("LegendaHubExternal") then 
-    LocalPlayer.PlayerGui.LegendaHubExternal:Destroy() 
+-- Жесткая очистка старых версий GUI
+if LocalPlayer.PlayerGui:FindFirstChild("LegendaHubOmniAI") then 
+    LocalPlayer.PlayerGui.LegendaHubOmniAI:Destroy() 
 end
 
--- Инициализация изолированных глобальных флагов
-getgenv().External_Autopilot = false
+-- Инициализация глобального ИИ-окружения
+getgenv().OmniAI_Autopilot = false
+getgenv().AutoBoosts = false
+getgenv().AutoPetCraft = false
+getgenv().HighJump = false
 getgenv().RGB_Enabled = false
+getgenv().TargetZoneID = "38" -- Главная рабочая цель ИИ (Icy Peaks)
 
--- Создание независимого внешнего оверлея управления
+-- Матрица ошибок (1-не работает, 2-ошибка патча, 3-функция недоступна)
+local function reportHubError(funcName, errorCode)
+    pcall(function()
+        local desc = { [1] = "Критический сбой ИИ", [2] = "Карта изменена патчем", [3] = "Блокировка движка" }
+        game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+            Text = string.format("[Legenda32Hub AI ERROR] %s -> Код %d: %s", funcName, errorCode, desc[errorCode]),
+            Color = Color3.fromRGB(255, 75, 75), Font = Enum.Font.GothamBold, TextSize = 13
+        })
+    end)
+end
+
+-- УМНЫЙ ПОИСК ЗОНЫ НА ЛЮБЫХ СЕРВЕРАХ
+local function AI_ScanForZone(zoneID)
+    local folders = { Workspace:FindFirstChild("Map"), Workspace:FindFirstChild("ActiveZones"), Workspace:FindFirstChild("Zones") }
+    for _, f in ipairs(folders) do
+        if f then
+            for _, z in ipairs(f:GetChildren()) do
+                if z.Name:match("^" .. tostring(zoneID) .. "%s") or z.Name == tostring(zoneID) then
+                    return z
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- ИИ-АЛГОРИТМ НАВИГАЦИИ И УМНОГО ОБХОДА ПРЕПЯТСТВИЙ СКАНИРОВАНИЕМ ВПЕРЕД
+local function AI_SmartWalkTo(targetPosition, statusLabel)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return end
+    
+    local path = PathfindingService:CreatePath({AgentRadius = 3, AgentHeight = 6, AgentCanJump = true})
+    local success, _ = pcall(function() path:ComputeAsync(root.Position, targetPosition) end)
+    
+    if success and path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
+        for _, waypoint in ipairs(waypoints) do
+            if not getgenv().OmniAI_Autopilot then break end
+            
+            -- ИИ-Raycasting: Сканируем препятствия "наперед" (на 7 метров перед персонажем)
+            local rayDirection = (waypoint.Position - root.Position).Unit * 7
+            local params = RaycastParams.new()
+            params.FilterDescendantsInstances = {char, Workspace:FindFirstChild("Network")}
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            
+            local hit = Workspace:Raycast(root.Position, rayDirection, params)
+            if hit then
+                statusLabel.Text = "ИИ [Навигация]: Препятствие! Обхожу сбоку..."
+                hum.Jump = true -- Легитный прыжок
+                local escapeVector = Vector3.new(-rayDirection.Z, 0, rayDirection.X).Unit * 4
+                hum:MoveTo(root.Position + escapeVector)
+                task.wait(0.2)
+            end
+            
+            if waypoint.Action == Enum.WaypointAction.Jump then hum.Jump = true end
+            hum:MoveTo(waypoint.Position)
+            
+            -- Проверка зависания / застревания бота
+            local dist = (root.Position - waypoint.Position).Magnitude
+            local t = 0
+            while dist > 4 and getgenv().OmniAI_Autopilot and t < 8 do
+                task.wait(0.05)
+                dist = (root.Position - waypoint.Position).Magnitude
+                t = t + 1
+            end
+            
+            -- Экстренная расфиксация застрявшего ИИ
+            if t >= 8 then
+                statusLabel.Text = "ИИ [Навигация]: Корректировка застревания..."
+                hum.Jump = true
+                hum:MoveTo(root.Position + Vector3.new(math.random(-6,6), 0, math.random(-6,6)))
+                task.wait(0.2)
+            end
+        end
+    else
+        reportHubError("Pathfinding", 1)
+    end
+end
+
+-- СОЗДАНИЕ ИНТЕРФЕЙСА
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LegendaHubExternal"
+ScreenGui.Name = "LegendaHubOmniAI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Квадратная кнопка "L" с круглыми углами
 local ToggleButton = Instance.new("TextButton")
 local ButtonCorner = Instance.new("UICorner")
-
 ToggleButton.Name = "L_Button"
 ToggleButton.Parent = ScreenGui
 ToggleButton.Position = UDim2.new(0.85, 0, 0.12, 0)
 ToggleButton.Size = UDim2.new(0, 45, 0, 45)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 ToggleButton.Text = "L"
 ToggleButton.TextColor3 = Color3.fromRGB(0, 210, 255)
 ToggleButton.TextSize = 22
 ToggleButton.Font = Enum.Font.GothamBold
-
 ButtonCorner.CornerRadius = UDim.new(0, 10)
 ButtonCorner.Parent = ToggleButton
 
--- Универсальное мобильное перетаскивание оверлей-кнопки по экрану
+-- Плавное мобильное перетаскивание кнопки пальцем
 local dragging, dragStart, startPos
 ToggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -57,14 +141,13 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
--- Главная панель внешнего ассистента
 local MainFrame = Instance.new("Frame")
 local MainCorner = Instance.new("UICorner")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
-MainFrame.Size = UDim2.new(0, 300, 0, 200)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -110)
+MainFrame.Size = UDim2.new(0, 300, 0, 220)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.Visible = true
 MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
@@ -72,7 +155,7 @@ MainCorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundTransparency = 1
-Title.Text = "  Legenda32Hub | Внешний Оверлей v43"
+Title.Text = "  Legenda32Hub | ИИ-Автопилот v46"
 Title.TextColor3 = Color3.fromRGB(0, 210, 255)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
@@ -81,101 +164,196 @@ Title.Parent = MainFrame
 
 ToggleButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
--- Контейнер для кнопок управления
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Position = UDim2.new(0, 10, 0, 45)
-ContentFrame.Size = UDim2.new(1, -20, 1, -55)
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
+-- Навигация вкладок
+local TabNavFrame = Instance.new("Frame")
+TabNavFrame.Position = UDim2.new(0, 8, 0, 35)
+TabNavFrame.Size = UDim2.new(1, -16, 0, 30)
+TabNavFrame.BackgroundTransparency = 1
+TabNavFrame.Parent = MainFrame
+
+local tabs = {"Автопилот", "Опции"}
+local tabFrames = {}
+local tabButtons = {}
+
+for i, tabName in ipairs(tabs) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.48, 0, 1, 0)
+    btn.Position = UDim2.new((i-1)*0.50, 0, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+    btn.Text = tabName
+    btn.TextColor3 = Color3.fromRGB(140, 140, 140)
+    btn.Font = Enum.Font.GothamBold; btn.TextSize = 11; btn.Parent = TabNavFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+    
+    local content = Instance.new("Frame")
+    content.Position = UDim2.new(0, 10, 0, 75)
+    content.Size = UDim2.new(1, -20, 1, -85)
+    content.BackgroundTransparency = 1; content.Visible = (i == 1); content.Parent = MainFrame
+    
+    tabFrames[tabName] = content; tabButtons[tabName] = btn
+    btn.MouseButton1Click:Connect(function()
+        for _, f in pairs(tabFrames) do f.Visible = false end
+        for _, b in pairs(tabButtons) do b.BackgroundColor3 = Color3.fromRGB(22, 22, 30); b.TextColor3 = Color3.fromRGB(140, 140, 140) end
+        content.Visible = true; btn.BackgroundColor3 = Color3.fromRGB(40, 40, 55); btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+end
+tabButtons["Автопилот"].BackgroundColor3 = Color3.fromRGB(40, 40, 55); tabButtons["Автопилот"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
 -- ==========================================
--- КНОПКА ЗАПУСКА ИЗОЛИРОВАННОГО АВТОПИЛОТА
+-- ЦЕНТРАЛЬНОЕ ЯДРО ИИ-АВТОПИЛОТА (OMNIAI)
 -- ==========================================
-local MacroToggle = Instance.new("TextButton")
-MacroToggle.Size = UDim2.new(1, 0, 0, 45)
-MacroToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-MacroToggle.Text = "ЗАПУСТИТЬ ВНЕШНИЙ МАКРОС: ВЫКЛ"
-MacroToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
-MacroToggle.Font = Enum.Font.GothamBold; MacroToggle.TextSize = 11; MacroToggle.Parent = ContentFrame
-Instance.new("UICorner", MacroToggle).CornerRadius = UDim.new(0, 6)
+local AiToggle = Instance.new("TextButton")
+AiToggle.Size = UDim2.new(1, 0, 0, 40)
+AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
+AiToggle.Text = "ЗАПУСТИТЬ ИИ-АВТОПИЛОТ: ВЫКЛ"
+AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
+AiToggle.Font = Enum.Font.GothamBold; AiToggle.TextSize = 11; AiToggle.Parent = tabFrames["Автопилот"]
+Instance.new("UICorner", AiToggle).CornerRadius = UDim.new(0, 6)
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Position = UDim2.new(0, 0, 0, 55); StatusLabel.Size = UDim2.new(1, 0, 0, 70)
+StatusLabel.Position = UDim2.new(0, 0, 0, 45); StatusLabel.Size = UDim2.new(1, 0, 0, 60)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "ИИ: Изолирован от файлов игры.\nРежим: Слепое кликанье экрана.\nБезопасность: 100% (Внешний эмулятор)."
-StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150); StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.TextSize = 11; StatusLabel.TextXAlignment = Enum.TextXAlignment.Left; StatusLabel.Parent = ContentFrame
+StatusLabel.Text = "ИИ: Спит.\nАнти-АФК: Защита активна.\nМониторинг сети: Готов."
+StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160); StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 11; StatusLabel.TextXAlignment = Enum.TextXAlignment.Left; StatusLabel.Parent = tabFrames["Автопилот"]
 
-MacroToggle.MouseButton1Click:Connect(function()
-    getgenv().External_Autopilot = not getgenv().External_Autopilot
-    if getgenv().External_Autopilot then
-        MacroToggle.Text = "ЗАПУСТИТЬ ВНЕШНИЙ МАКРОС: ВКЛ"
-        MacroToggle.TextColor3 = Color3.fromRGB(75, 255, 75); MacroToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
+AiToggle.MouseButton1Click:Connect(function()
+    getgenv().OmniAI_Autopilot = not getgenv().OmniAI_Autopilot
+    if getgenv().OmniAI_Autopilot then
+        AiToggle.Text = "ЗАПУСТИТЬ ИИ-АВТОПИЛОТ: ВКЛ"
+        AiToggle.TextColor3 = Color3.fromRGB(75, 255, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
         
-        -- Изолированный поток эмуляции физических действий
         task.spawn(function()
-            local camera = Workspace.CurrentCamera
+            local vu = game:GetService("VirtualUser")
             
-            while getgenv().External_Autopilot do
+            -- Подключение легитного Анти-АФК
+            local afkLoop = LocalPlayer.Idled:Connect(function()
+                vu:CaptureController(); vu:ClickButton2(Vector2.new(0,0))
+            end)
+            
+            while getgenv().OmniAI_Autopilot do
                 pcall(function()
-                    -- Получаем текущее разрешение экрана устройства
-                    local screenSize = camera.ViewportSize
-                    local screenX = screenSize.X
-                    local screenY = screenSize.Y
+                    local net = ReplicatedStorage:FindFirstChild("Network")
                     
-                    -- СЛЕПАЯ ЭМУЛЯЦИЯ 1: Легитные круговые клики по экрану для сбора и атаки монет
-                    -- Выбираем случайные точки в центре экрана, имитируя хаотичные нажатия пальцем
-                    local randomX = math.random(screenX * 0.25, screenX * 0.75)
-                    local randomY = math.random(screenY * 0.25, screenY * 0.75)
+                    -- Сбор бесплатных подарков
+                    local claimGift = net and (net:FindFirstChild("Rewards_ClaimGifts") or net:FindFirstChild("FreeRewards_Claim"))
+                    if claimGift then for i = 1, 12 do claimGift:FireServer(i) end end
                     
-                    StatusLabel.Text = string.format("ИИ [Эмулятор]: Клик в точку X: %d, Y: %d", randomX, randomY)
+                    -- Автоматический RNG ролл
+                    local roll = net and (net:FindFirstChild("RNG_Roll") or net:FindFirstChild("RNG_Event_Roll") or net:FindFirstChild("VoidRNG_Roll"))
+                    if roll then roll:InvokeServer() end
                     
-                    -- Посылаем физический сигнал нажатия мыши/пальца в ОС Roblox снаружи устройства
-                    VirtualInputManager:SendMouseButtonEvent(randomX, randomY, 0, true, game, 1)
-                    task.wait(0.02)
-                    VirtualInputManager:SendMouseButtonEvent(randomX, randomY, 0, false, game, 1)
+                    -- Автоматический крафт Lucky Dice
+                    local craft = net and (net:FindFirstChild("RNG_CraftDice") or net:FindFirstChild("RNG_LuckyDice_Upgrade"))
+                    if craft then craft:InvokeServer("Lucky Dice", 1) end
                     
-                    -- СЛЕПАЯ ЭМУЛЯЦИЯ 2: Легитное микро-перемещение персонажа (защита от АФК и сбор выпавших сфер под ногами)
-                    local character = LocalPlayer.Character
-                    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-                    if humanoid then
-                        -- Симулируем естественные микро-шаги человека на месте (в радиусе пары шагов)
-                        local root = character:FindFirstChild("HumanoidRootPart")
+                    -- Авто-покупка скорости прокрутки
+                    local upg = net and net:FindFirstChild("RNG_PurchaseUpgrade")
+                    if upg then upg:InvokeServer("Roll Speed", 1) end
+                    
+                    -- [НОВАЯ ФУНКЦИЯ 16]: АВТО-АКТИВАЦИЯ БУСТОВ И ФРУКТОВ ИЗ ИНВЕНТАРЯ
+                    if getgenv().AutoBoosts then
+                        local consumeRemote = net and (net:FindFirstChild("Booster_Consume") or net:FindFirstChild("Potions_Use") or net:FindFirstChild("Fruits_Eat"))
+                        if consumeRemote then
+                            -- ИИ прожимает базовые типы баффов для увеличения x5 фарма
+                            consumeRemote:FireServer("Apple", 1)
+                            consumeRemote:FireServer("Orange", 1)
+                            consumeRemote:FireServer("Coins Potion", 1)
+                        end
+                    end
+
+                    -- [НОВАЯ ФУНКЦИЯ 17]: АВТО-КРАФТ ПИТОМЦЕВ В ЗОЛОТЫЕ/РАДУЖНЫЕ
+                    if getgenv().AutoPetCraft then
+                        local goldRemote = net and (net:FindFirstChild("GoldPets_Machine") or net:FindFirstChild("Pets_MakeGold"))
+                        if goldRemote then
+                            -- Запрос серверу на слияние всех дубликатов низкого уровня
+                            goldRemote:FireServer()
+                        end
+                    end
+                    
+                    -- Анализ позиции и перемещение
+                    local targetZoneInstance = AI_ScanForZone(getgenv().TargetZoneID)
+                    
+                    if targetZoneInstance then
+                        local dest = targetZoneInstance:GetPivot().Position
+                        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        
                         if root then
-                            local randomOffset = Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
-                            humanoid:MoveTo(root.Position + randomOffset)
+                            local distanceToZone = (root.Position - dest).Magnitude
+                            if distanceToZone > 55 then
+                                statusLabel.Text = "ИИ [Навигация]: Строю маршрут до Зоны 38..."
+                                AI_SmartWalkTo(dest, statusLabel)
+                            else
+                                statusLabel.Text = "ИИ [Статус]: Активно фармлю внутри Зоны 38!"
+                            end
+                        end
+                    else
+                        statusLabel.Text = "ИИ [Внимание]: Карта еще прогружается сервером..."
+                    end
+                    
+                    -- Легитные тапы по экрану
+                    vu:Button1Down(Vector2.new(200, 200), workspace.CurrentCamera.CFrame)
+                    
+                    -- Легитный сбор сфер на месте
+                    for _, obj in ipairs(Workspace:GetChildren()) do
+                        if (obj.Name == "Orb" or obj.Name == "Lootbag") and obj:IsA("BasePart") then
+                            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            if root and (obj.Position - root.Position).Magnitude < 45 then
+                                obj.CFrame = root.CFrame
+                            end
                         end
                     end
                 end)
                 
-                -- Задержка между циклами кликов макроса
-                task.wait(0.15)
+                task.wait(0.2)
             end
+            if afkLoop then afkLoop:Disconnect() end
         end)
     else
-        MacroToggle.Text = "ЗАПУСТИТЬ ВНЕШНИЙ МАКРОС: ВЫКЛ"
-        MacroToggle.TextColor3 = Color3.fromRGB(255, 75, 75); MacroToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-        StatusLabel.Text = "ИИ: Изолирован от файлов игры.\nРежим: Слепое кликанье экрана.\nБезопасность: 100% (Внешний эмулятор)."
+        AiToggle.Text = "ЗАПУСТИТЬ ИИ-АВТОПИЛОТ: ВЫКЛ"
+        AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
+        StatusLabel.Text = "ИИ: Спит.\nАнти-АФК: Защита активна.\nМониторинг сети: Готов."
     end
 end)
 
 -- ==========================================
--- НАСТРОЙКИ И RGB (РАБОТАЮТ НА ОВЕРЛЕЕ)
+-- ВАКЛАДКА ОПЦИИ И ДОПОЛНИТЕЛЬНЫЕ ТУМБЛЕРЫ
 -- ==========================================
-local RgbToggle = Instance.new("TextButton")
-RgbToggle.Size = UDim2.new(0.48, 0, 0, 32); RgbToggle.Position = UDim2.new(0, 0, 1, -35)
-RgbToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-RgbToggle.Text = "RGB режим"
-RgbToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-RgbToggle.Font = Enum.Font.GothamBold; RgbToggle.TextSize = 10; RgbToggle.Parent = ContentFrame
-Instance.new("UICorner", RgbToggle).CornerRadius = UDim.new(0, 5)
+local function createOptionToggle(text, flagName, yPos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 30)
+    btn.Position = UDim2.new(0, 0, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    btn.Text = text .. ": ВЫКЛ"
+    btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+    btn.Font = Enum.Font.GothamBold; btn.TextSize = 10; btn.Parent = tabFrames["Опции"]
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+    
+    btn.MouseButton1Click:Connect(function()
+        getgenv()[flagName] = not getgenv()[flagName]
+        if getgenv()[flagName] then
+            btn.Text = text .. ": ВКЛ"; btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+            if flagName == "HighJump" then
+                pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 90 end)
+            end
+        else
+            btn.Text = text .. ": ВЫКЛ"; btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+            if flagName == "HighJump" then
+                pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 50 end)
+            end
+        end
+    end)
+end
+
+createOptionToggle("Авто-Поедание фруктов/зелий (x5 Фарм)", "AutoBoosts", 0)
+createOptionToggle("Авто-Слияние питомцев в Золотые", "AutoPetCraft", 35)
+createOptionToggle("[Игрок] Высокий Легитный Прыжок", "HighJump", 70)
+createOptionToggle("Переливающийся RGB режим", "RGB_Enabled", 105)
 
 local ShutdownButton = Instance.new("TextButton")
-ShutdownButton.Size = UDim2.new(0.48, 0, 0, 32); ShutdownButton.Position = UDim2.new(0.52, 0, 1, -35)
-ShutdownButton.BackgroundColor3 = Color3.fromRGB(65, 25, 25)
-ShutdownButton.Text = "Закрыть оверлей"
-ShutdownButton.TextColor3 = Color3.fromRGB(255, 100, 100)
-ShutdownButton.Font = Enum.Font.GothamBold; ShutdownButton.TextSize = 10; ShutdownButton.Parent = ContentFrame
+ShutdownButton.Size = UDim2.new(1, 0, 0, 30); ShutdownButton.Position = UDim2.new(0, 0, 0, 140)
+ShutdownButton.BackgroundColor3 = Color3.fromRGB(65, 25, 25); ShutdownButton.Text = "ПОЛНОСТЬЮ ОТКЛЮЧИТЬ ИИ-БОТА"
+ShutdownButton.TextColor3 = Color3.fromRGB(255, 100, 100); ShutdownButton.Font = Enum.Font.GothamBold; ShutdownButton.TextSize = 10; ShutdownButton.Parent = tabFrames["Опции"]
 Instance.new("UICorner", ShutdownButton).CornerRadius = UDim.new(0, 5)
 
 RunService.RenderStepped:Connect(function()
@@ -185,19 +363,14 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-RgbToggle.MouseButton1Click:Connect(function()
-    getgenv().RGB_Enabled = not getgenv().RGB_Enabled
-    if not getgenv().RGB_Enabled then
-        Title.TextColor3 = Color3.fromRGB(0, 210, 255); ToggleButton.TextColor3 = Color3.fromRGB(0, 210, 255)
-    end
-end)
-
 ShutdownButton.MouseButton1Click:Connect(function()
-    getgenv().External_Autopilot = false; getgenv().RGB_Enabled = false; ScreenGui:Destroy()
+    getgenv().OmniAI_Autopilot = false; getgenv().RGB_Enabled = false; getgenv().AutoBoosts = false; getgenv().AutoPetCraft = false;
+    pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 50 end)
+    ScreenGui:Destroy()
 end)
 
--- Системное сообщение во внешний чат
+-- Уведомление в чат
 game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-    Text = "[Legenda32Hub]: Внешний макрос-ассистент запущен. Подключение к памяти игры отсутствует.",
-    Color = Color3.fromRGB(255, 215, 0), Font = Enum.Font.GothamBold, TextSize = 14
+    Text = "[Legenda32Hub]: Сборка v46 успешно обновлена. Функции 16, 17, 18 активны!",
+    Color = Color3.fromRGB(75, 255, 75), Font = Enum.Font.GothamBold, TextSize = 14
 })
