@@ -11,12 +11,20 @@ local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
-local network = ReplicatedStorage:WaitForChild("Network", 7)
 
--- БЕЗОПАСНОЕ ОПРЕДЕЛЕНИЕ ПАПКИ ИНТЕРФЕЙСА (Фикс для Delta)
+-- Асинхронный поиск папки Network (Чтобы скрипt не зависал при старте)
+local network = nil
+task.spawn(function()
+    network = ReplicatedStorage:FindFirstChild("Network") or ReplicatedStorage:WaitForChild("Network", 3)
+    if not network then
+        print("Legenda32Hub: Предупреждение! Папка Network не найдена, ивентовые функции будут ждать её появления.")
+    end
+end)
+
+-- БЕЗОПАСНОЕ ОПРЕДЕЛЕНИЕ ПАПКИ ИНТЕРФЕЙСА ДЛЯ DELTA EXECUTOR
 local targetGuiFolder = player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
 
--- Удаление старой копии интерфейса перед перезапуском
+-- Полное удаление старой копии интерфейса перед перезапуском
 if targetGuiFolder:FindFirstChild("Legenda32Hub_Gui") then
     targetGuiFolder:FindFirstChild("Legenda32Hub_Gui"):Destroy()
 end
@@ -479,12 +487,6 @@ tradeHeader.TextSize = 14
 tradeHeader.TextXAlignment = Enum.TextXAlignment.Left
 tradeHeader.Parent = pages["Trading"]
 
-local function getPlayerLanguage(targetPlayer)
-    local locale = targetPlayer.LocaleId or "en-us"
-    locale = string.lower(locale)
-    if string.find(locale, "ru") or string.find(locale, "uk") or string.find(locale, "be") or string.find(locale, "kk") then return "RU" else return "EN" end
-end
-
 createToggle(pages["Trading"], "Auto Begging Bot", "AutoBeggingBot", function(toggled)
     task.spawn(function()
         while toggled and _G.Legenda32Settings.AutoBeggingBot do
@@ -575,7 +577,7 @@ end)
 
 -- Вкладка Misc
 local miscHeader = Instance.new("TextLabel")
-miscHeader.Size = ULim2.new(1, -5, 0, 20)
+miscHeader.Size = UDim2.new(1, -5, 0, 20)
 miscHeader.BackgroundTransparency = 1
 miscHeader.Text = "⚙️ Config File Manager"
 miscHeader.TextColor3 = Color3.fromRGB(0, 255, 150)
@@ -618,7 +620,8 @@ loadConfigBtn.MouseButton1Click:Connect(function()
             _G.Legenda32Settings[key] = val
             if activeToggles[key] then activeToggles[key].Update(val) task.spawn(activeToggles[key].Callback, val) end
         end
-        loadConfigBtn.    else 
+        loadConfigBtn.Text = "✅ Config Loaded!"
+    else 
         loadConfigBtn.Text = "❌ No Saved Config Found" 
     end
     task.wait(1.5) 
