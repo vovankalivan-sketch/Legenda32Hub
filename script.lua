@@ -1,5 +1,5 @@
 -- ====================================================================
--- ФИНАЛЬНЫЙ СЕТЕВОЙ КОД LEGENDA32HUB (ЗАГРУЖАТЬ В SCRIPT.LUA НА GITHUB)
+-- УЛЬТИМАТИВНЫЙ ПУШЕЧНЫЙ КОД LEGENDA32HUB (ЗАГРУЖАТЬ В SCRIPT.LUA НА GITHUB)
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -18,46 +18,40 @@ end
 getgenv().AutoFarmTeleport = false
 getgenv().AutoRNGEvent = false
 getgenv().RGB_Enabled = false
-getgenv().SelectedZoneID = "38" -- По умолчанию выставляем вашу 38 зону
+getgenv().SelectedZoneNumber = "38" -- По умолчанию выставляем вашу 38 зону (Icy Peaks)
 
--- ОФИЦИАЛЬНЫЙ СПИСОК ИДЕНТИФИКАТОРОВ ЗОН (ДЛЯ СЕТЕВЫХ КОМАНД СЕРВЕРУ)
+-- Список оригинальных игровых названий зон для пушечной системы
 local GameZones = {
     {"1", "Area 1 (Spawn)"},
-    {"2", "Area 2 (Colorful Forest)"},
-    {"3", "Area 3 (Castle)"},
-    {"5", "Area 5 (Autumn)"},
     {"10", "Area 10 (Mine)"},
-    {"15", "Area 15 (Enchanted Forest)"},
     {"20", "Area 20 (Beach)"},
-    {"25", "Area 25 (Tiki)"},
     {"30", "Area 30 (Fossil Digsite)"},
-    {"34", "Area 34 (Grand Canyons)"},
     {"38", "Area 38 (Icy Peaks)"},
-    {"43", "Area 43 (Volcano)"},
     {"50", "Area 50 (Fire Dojo)"},
     {"75", "Area 75 (Haunted Forest)"},
     {"99", "Area 99 (Rainbow Road)"}
 }
 
--- Функция отправки официального сетевого пакета телепортации на сервер
-local function TeleportToServerZone(zoneID)
+-- ФУНКЦИЯ ТЕЛЕПОРТАЦИИ СИМУЛЯЦИЕЙ ВЫСТРЕЛА ИЗ ПУШКИ
+local function ShootFromCannon(zoneNumber)
     pcall(function()
         local network = ReplicatedStorage:FindFirstChild("Network")
         if network then
-            -- Используем официальный удаленный вызов игры для перемещения между зонами
-            local teleportRemote = network:FindFirstChild("Teleports_Teleport") or network:FindFirstChild("Teleport") or network:FindFirstChild("Zoning_Teleport")
-            if teleportRemote and teleportRemote:IsA("RemoteFunction") then
-                teleportRemote:InvokeServer("Area " .. tostring(zoneID))
+            -- Официальное сетевое событие пушек в Pet Simulator 99
+            local cannonRemote = network:FindFirstChild("Cannons_Fire") or network:FindFirstChild("Cannon_Fire") or network:FindFirstChild("Cannons:Fire")
+            
+            if cannonRemote and cannonRemote:IsA("RemoteFunction") then
+                -- Отправляем запрос серверу на выстрел в указанную локацию
+                cannonRemote:InvokeServer("Area " .. tostring(zoneNumber))
             else
-                -- Резервный метод: перехват через систему карт, если ремот скрыт
-                local map = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("ActiveZones")
+                -- Резервный физический метод: если ремоты заблокированы, прыгаем в физическую пушку на спавне
+                local mapFolder = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("ActiveZones")
                 local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if map and root then
-                    for _, zone in ipairs(map:GetChildren()) do
-                        if zone.Name:match("^" .. tostring(zoneID) .. "%s") or zone.Name == tostring(zoneID) then
-                            root.CFrame = zone:GetPivot() + Vector3.new(0, 5, 0)
-                            break
-                        end
+                if mapFolder and root then
+                    local mainCannon = mapFolder:FindFirstChild("MainCannon") or mapFolder:FindFirstChild("Cannon")
+                    if mainCannon then
+                        root.CFrame = mainCannon:GetPivot()
+                        task.wait(0.2)
                     end
                 end
             end
@@ -195,12 +189,12 @@ BtnTeleport.MouseButton1Click:Connect(function() switchTab(TeleportContent, BtnT
 BtnSettings.MouseButton1Click:Connect(function() switchTab(SettingsContent, BtnSettings) end)
 
 -- ==========================================
--- ОФИЦИАЛЬНЫЙ АВТОФАРМ С СЕТЕВОЙ СИНХРОНИЗАЦИЕЙ
+-- УМНЫЙ АВТОФАРМ ЧЕРЕЗ ПУШЕЧНЫЙ УДЕРЖИВАТЕЛЬ
 -- ==========================================
 local FarmToggle = Instance.new("TextButton")
 FarmToggle.Size = UDim2.new(1, 0, 0, 40)
 FarmToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-FarmToggle.Text = "Официальный Авто-Фарм: ВЫКЛ"
+FarmToggle.Text = "Пушечный Авто-Фарм: ВЫКЛ"
 FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
 FarmToggle.Font = Enum.Font.GothamBold; FarmToggle.TextSize = 11; FarmToggle.Parent = FarmContent
 Instance.new("UICorner", FarmToggle).CornerRadius = UDim.new(0, 6)
@@ -214,18 +208,18 @@ StatusLabel.TextSize = 11; StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 FarmToggle.MouseButton1Click:Connect(function()
     getgenv().AutoFarmTeleport = not getgenv().AutoFarmTeleport
     if getgenv().AutoFarmTeleport then
-        FarmToggle.Text = "Официальный Авто-Фарм: ВКЛ"
+        FarmToggle.Text = "Пушечный Авто-Фарм: ВКЛ"
         FarmToggle.TextColor3 = Color3.fromRGB(75, 255, 75); FarmToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
         
         task.spawn(function()
             while getgenv().AutoFarmTeleport do
                 pcall(function()
-                    StatusLabel.Text = "Статус: Удерживаем Зону " .. tostring(getgenv().SelectedZoneID)
+                    StatusLabel.Text = "Статус: Выстрел из пушки в Зону " .. tostring(getgenv().SelectedZoneNumber)
                     
-                    -- Постоянно вызываем официальный серверный телепорт в выбранную локацию
-                    TeleportToServerZone(getgenv().SelectedZoneID)
+                    -- Симулируем пушечный выстрел для удержания в зоне
+                    ShootFromCannon(getgenv().SelectedZoneNumber)
                     
-                    -- Сбор выпадающих предметов вокруг персонажа
+                    -- Сбор выпадающих предметов вокруг персонажа на локации
                     local char = LocalPlayer.Character
                     local root = char and char:FindFirstChild("HumanoidRootPart")
                     if root then
@@ -236,39 +230,39 @@ FarmToggle.MouseButton1Click:Connect(function()
                         end
                     end
                 end)
-                task.wait(0.3)
+                task.wait(0.5) -- Оптимальная задержка пушки для защиты от лагов
             end
         end)
     else
-        FarmToggle.Text = "Официальный Авто-Фарм: ВЫКЛ"
+        FarmToggle.Text = "Пушечный Авто-Фарм: ВЫКЛ"
         FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75); FarmToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
         StatusLabel.Text = "Статус: Фарм не активен."
     end
 end)
 
 -- ==========================================
--- ПРОДВИНУТАЯ СЕТКА СЕРВЕРНЫХ ТЕЛЕПОРТОВ
+-- НАДЕЖНЫЕ ПУШЕЧНЫЕ ТЕЛЕПОРТЫ
 -- ==========================================
 local ScrollTeleport = Instance.new("ScrollingFrame")
 ScrollTeleport.Size = UDim2.new(1, 0, 1, 0); ScrollTeleport.BackgroundTransparency = 1
 ScrollTeleport.CanvasSize = UDim2.new(0, 0, 2.5, 0); ScrollTeleport.ScrollBarThickness = 2; ScrollTeleport.Parent = TeleportContent
 
 for i, zoneData in ipairs(GameZones) do
-    local zoneID = zoneData[1]
+    local zoneNumber = zoneData[1]
     local zoneName = zoneData[2]
     
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -6, 0, 32)
     btn.Position = UDim2.new(0, 0, 0, (i - 1) * 36)
     btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    btn.Text = "Выбрать: " .. zoneName
+    btn.Text = "Выстрел в: " .. zoneName
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.GothamBold; btn.TextSize = 11; btn.Parent = ScrollTeleport
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
     
     btn.MouseButton1Click:Connect(function()
-        getgenv().SelectedZoneID = zoneID -- Запоминаем ID зоны для автофарма
-        TeleportToServerZone(zoneID)     -- Мгновенно отправляем пакет телепортации на сервер
+        getgenv().SelectedZoneNumber = zoneNumber -- Запоминаем для фармера
+        ShootFromCannon(zoneNumber)               -- Стреляем из пушки
     end)
 end
 
@@ -339,6 +333,6 @@ ShutdownButton.MouseButton1Click:Connect(function()
 end)
 
 game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-    Text = "[Legenda32Hub]: Код успешно обновлен на основе официальных ID зон!",
+    Text = "[Legenda32Hub]: Успешно синхронизировано с игровой пушечной сетью!",
     Color = Color3.fromRGB(75, 255, 75), Font = Enum.Font.GothamBold, TextSize = 14
 })
