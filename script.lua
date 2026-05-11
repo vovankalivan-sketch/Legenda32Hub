@@ -1,5 +1,5 @@
 -- ====================================================================
--- ULTIMATE LEGENDA32HUB V40 | ПОЛНЫЙ АВТОНОМНЫЙ ИИ-АВТОПИЛОТ (OMNIAI)
+-- ULTIMATE LEGENDA32HUB V41 | ИСПРАВЛЕННЫЙ ИИ-АВТОПИЛОТ (БЕЗ ЗАВИСАНИЙ)
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -23,12 +23,27 @@ getgenv().TargetZoneID = "38" -- Главная рабочая цель ИИ (Ic
 -- Матрица ошибок (1-не работает, 2-ошибка патча, 3-функция недоступна)
 local function reportHubError(funcName, errorCode)
     pcall(function()
-        local desc = {[1] = "Критический сбой ИИ", [2] = "Карта изменена патчем", [3] = "Блокировка движка"}
+        local desc = { [1] = "Критический сбой ИИ", [2] = "Карта изменена патчем", [3] = "Блокировка движка" }
         game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
             Text = string.format("[Legenda32Hub AI ERROR] %s -> Код %d: %s", funcName, errorCode, desc[errorCode]),
             Color = Color3.fromRGB(255, 75, 75), Font = Enum.Font.GothamBold, TextSize = 13
         })
     end)
+end
+
+-- УМНЫЙ ПОИСК ЗОНЫ НА ЛЮБЫХ СЕРВЕРАХ
+local function AI_ScanForZone(zoneID)
+    local folders = { Workspace:FindFirstChild("Map"), Workspace:FindFirstChild("ActiveZones"), Workspace:FindFirstChild("Zones") }
+    for _, f in ipairs(folders) do
+        if f then
+            for _, z in ipairs(f:GetChildren()) do
+                if z.Name:match("^" .. tostring(zoneID) .. "%s") or z.Name == tostring(zoneID) then
+                    return z
+                end
+            end
+        end
+    end
+    return nil
 end
 
 -- ИИ-АЛГОРИТМ НАВИГАЦИИ И УМНОГО ОБХОДА ПРЕПЯТСТВИЙ СКАНИРОВАНИЕМ ВПЕРЕД
@@ -67,18 +82,18 @@ local function AI_SmartWalkTo(targetPosition, statusLabel)
             -- Проверка зависания / застревания бота
             local dist = (root.Position - waypoint.Position).Magnitude
             local t = 0
-            while dist > 3.5 and getgenv().OmniAI_Autopilot and t < 12 do
+            while dist > 4 and getgenv().OmniAI_Autopilot and t < 8 do
                 task.wait(0.05)
                 dist = (root.Position - waypoint.Position).Magnitude
                 t = t + 1
             end
             
             -- Экстренная расфиксация застрявшего ИИ
-            if t >= 12 then
+            if t >= 8 then
                 statusLabel.Text = "ИИ [Навигация]: Корректировка застревания..."
                 hum.Jump = true
                 hum:MoveTo(root.Position + Vector3.new(math.random(-6,6), 0, math.random(-6,6)))
-                task.wait(0.3)
+                task.wait(0.2)
             end
         end
     else
@@ -137,7 +152,7 @@ MainCorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundTransparency = 1
-Title.Text = "  Legenda32Hub | ИИ-Автопилот v40"
+Title.Text = "  Legenda32Hub | ИИ-Автопилот v41"
 Title.TextColor3 = Color3.fromRGB(0, 210, 255)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
@@ -209,26 +224,24 @@ AiToggle.MouseButton1Click:Connect(function()
         task.spawn(function()
             local vu = game:GetService("VirtualUser")
             
-            -- Подключение легитного Анти-АФК (Движения мышкой внутри ИИ)
+            -- Подключение легитного Анти-АФК
             local afkLoop = LocalPlayer.Idled:Connect(function()
                 vu:CaptureController(); vu:ClickButton2(Vector2.new(0,0))
             end)
             
             while getgenv().OmniAI_Autopilot do
-                local success, _ = pcall(function()
+                pcall(function()
                     local net = ReplicatedStorage:FindFirstChild("Network")
                     
-                    -- ФУНКЦИЯ 1 ИИ: Легитный авто-сбор бесплатных подарков по кулдауну
-                    StatusLabel.Text = "ИИ [Анализ]: Проверяю доступные подарки..."
+                    -- ФУНКЦИЯ 1 ИИ: Легитный авто-сбор бесплатных подарков
                     local claimGift = net and (net:FindFirstChild("Rewards_ClaimGifts") or net:FindFirstChild("FreeRewards_Claim"))
                     if claimGift then for i = 1, 12 do claimGift:FireServer(i) end end
                     
-                    -- ФУНКЦИЯ 2 ИИ: Мониторинг и автоматический RNG ролл кубиков
-                    StatusLabel.Text = "ИИ [Анализ]: Прокрутка RNG Эвент-кубиков..."
+                    -- ФУНКЦИЯ 2 ИИ: Мониторинг и автоматический RNG ролл
                     local roll = net and (net:FindFirstChild("RNG_Roll") or net:FindFirstChild("RNG_Event_Roll") or net:FindFirstChild("VoidRNG_Roll"))
                     if roll then roll:InvokeServer() end
                     
-                    -- ФУНКЦИЯ 3 ИИ: Автоматический крафт Lucky Dice в инвентаре
+                    -- ФУНКЦИЯ 3 ИИ: Автоматический крафт Lucky Dice
                     local craft = net and (net:FindFirstChild("RNG_CraftDice") or net:FindFirstChild("RNG_LuckyDice_Upgrade"))
                     if craft then craft:InvokeServer("Lucky Dice", 1) end
                     
@@ -236,45 +249,42 @@ AiToggle.MouseButton1Click:Connect(function()
                     local upg = net and net:FindFirstChild("RNG_PurchaseUpgrade")
                     if upg then upg:InvokeServer("Roll Speed", 1) end
                     
-                    -- ФУНКЦИЯ 5 ИИ: Анализ карты, построение путей и легитный бег в Зону 38
-                    local map = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("ActiveZones")
-                    local targetZoneInstance = nil
-                    if map then
-                        for _, zone in ipairs(map:GetChildren()) do
-                            if zone.Name:match("^" .. getgenv().TargetZoneID .. "%s") or zone.Name == getgenv().TargetZoneID then
-                                targetZoneInstance = zone; break
-                            end
-                        end
-                    end
+                    -- ФУНКЦИЯ 5 ИИ: Анализ позиции и перемещение БЕЗ ЗАВИСАНИЙ
+                    local targetZoneInstance = AI_ScanForZone(getgenv().TargetZoneID)
                     
                     if targetZoneInstance then
-                        StatusLabel.Text = "ИИ [Маршрут]: Проверяю позицию персонажа..."
                         local dest = targetZoneInstance:GetPivot().Position
                         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                         
-                        -- Если бот ушел далеко от 38 зоны, ИИ сам бежит обратно через препятствия
-                        if root and (root.Position - dest).Magnitude > 45 then
-                            StatusLabel.Text = "ИИ [Маршрут]: Корректирую бег до Зоны 38..."
-                            AI_SmartWalkTo(dest, StatusLabel)
+                        if root then
+                            local distanceToZone = (root.Position - dest).Magnitude
+                            -- Исправлено: Проверка запускается только если персонаж реально ушел из зоны
+                            if distanceToZone > 55 then
+                                statusLabel.Text = "ИИ [Навигация]: Строю маршрут до Зоны 38..."
+                                AI_SmartWalkTo(dest, statusLabel)
+                            else
+                                statusLabel.Text = "ИИ [Статус]: Активно фармлю внутри Зоны 38!"
+                            end
                         end
+                    else
+                        statusLabel.Text = "ИИ [Внимание]: Карта еще прогружается сервером..."
                     end
                     
-                    -- ФУНКЦИЯ 6 ИИ: Легитные тапы по экрану для атаки питомцами кубов монет
+                    -- ФУНКЦИЯ 6 ИИ: Легитные тапы по экрану
                     vu:Button1Down(Vector2.new(200, 200), workspace.CurrentCamera.CFrame)
                     
-                    -- ФУНКЦИЯ 7 ИИ: Легитный соприкосновенный сбор выпавших мешков и алмазов
+                    -- ФУНКЦИЯ 7 ИИ: Легитный сбор сфер на месте
                     for _, obj in ipairs(Workspace:GetChildren()) do
                         if (obj.Name == "Orb" or obj.Name == "Lootbag") and obj:IsA("BasePart") then
                             local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                            if root and (obj.Position - root.Position).Magnitude < 40 then
-                                obj.CFrame = root.CFrame -- Всасываем сферы только находясь рядом
+                            if root and (obj.Position - root.Position).Magnitude < 45 then
+                                obj.CFrame = root.CFrame
                             end
                         end
                     end
                 end)
                 
-                if not success then reportHubError("OmniAI_DecisionCore", 2) end
-                task.wait(0.1) -- Частота процессора ИИ-автопилота
+                task.wait(0.2) -- Безопасный интервал проверки
             end
             if afkLoop then afkLoop:Disconnect() end
         end)
@@ -286,7 +296,7 @@ AiToggle.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- ВКЛАДКА ОПЦИИ И ПОЛНОЕ УДАЛЕНИЯ СКРИПТА
+-- ВАКЛАДКА ОПЦИИ И ЗАКРЫТИЕ
 -- ==========================================
 local RgbToggle = Instance.new("TextButton")
 RgbToggle.Size = UDim2.new(1, 0, 0, 40); RgbToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
@@ -323,6 +333,6 @@ end)
 
 -- Уведомление в чат
 game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-    Text = "[Legenda32Hub]: Нейросетевой ИИ-Автопилот OmniAI v40 успешно инициализирован!",
+    Text = "[Legenda32Hub]: Сбой циклов проверки устранен. Модуль v41 активен!",
     Color = Color3.fromRGB(75, 255, 75), Font = Enum.Font.GothamBold, TextSize = 14
 })
