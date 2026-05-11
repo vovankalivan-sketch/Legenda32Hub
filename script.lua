@@ -1,5 +1,5 @@
 -- ====================================================================
--- ИСПРАВЛЕННЫЙ КОД LEGENDA32HUB (ЗАГРУЖАТЬ В SCRIPT.LUA НА GITHUB)
+-- ФИНАЛЬНЫЙ СЕТЕВОЙ КОД LEGENDA32HUB (ЗАГРУЖАТЬ В SCRIPT.LUA НА GITHUB)
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -9,7 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
--- Удаление старых копий GUI при перезапуске
+-- Принудительное удаление старых GUI при перезапуске
 if LocalPlayer.PlayerGui:FindFirstChild("LegendaHubUniversal") then 
     LocalPlayer.PlayerGui.LegendaHubUniversal:Destroy() 
 end
@@ -18,17 +18,52 @@ end
 getgenv().AutoFarmTeleport = false
 getgenv().AutoRNGEvent = false
 getgenv().RGB_Enabled = false
-getgenv().SelectedFarmZone = "38" -- По умолчанию фармим вашу 38 зону
+getgenv().SelectedZoneID = "38" -- По умолчанию выставляем вашу 38 зону
 
--- ЖЕСТКАЯ БАЗА КООРДИНАТ ДЛЯ ТЕЛЕПОРТОВ (ОБХОД БАГОВ КАРТЫ)
-local ZoneCoordinates = {
-    ["1"]  = Vector3.new(-192, 5, 20),      -- Зона 1 (Spawn)
-    ["10"] = Vector3.new(-195, 10, 1150),   -- Зона 10 (Шахта)
-    ["20"] = Vector3.new(-190, 8, 2350),    -- Зона 20 (Пустыня)
-    ["30"] = Vector3.new(-185, 12, 3500),   -- Зона 30 (Пираты)
-    ["38"] = Vector3.new(-190, 15, 4420),   -- Зона 38 (Ваш Каньон)
-    ["50"] = Vector3.new(-180, 20, 5800)    -- Зона 50 (Самураи)
+-- ОФИЦИАЛЬНЫЙ СПИСОК ИДЕНТИФИКАТОРОВ ЗОН (ДЛЯ СЕТЕВЫХ КОМАНД СЕРВЕРУ)
+local GameZones = {
+    {"1", "Area 1 (Spawn)"},
+    {"2", "Area 2 (Colorful Forest)"},
+    {"3", "Area 3 (Castle)"},
+    {"5", "Area 5 (Autumn)"},
+    {"10", "Area 10 (Mine)"},
+    {"15", "Area 15 (Enchanted Forest)"},
+    {"20", "Area 20 (Beach)"},
+    {"25", "Area 25 (Tiki)"},
+    {"30", "Area 30 (Fossil Digsite)"},
+    {"34", "Area 34 (Grand Canyons)"},
+    {"38", "Area 38 (Icy Peaks)"},
+    {"43", "Area 43 (Volcano)"},
+    {"50", "Area 50 (Fire Dojo)"},
+    {"75", "Area 75 (Haunted Forest)"},
+    {"99", "Area 99 (Rainbow Road)"}
 }
+
+-- Функция отправки официального сетевого пакета телепортации на сервер
+local function TeleportToServerZone(zoneID)
+    pcall(function()
+        local network = ReplicatedStorage:FindFirstChild("Network")
+        if network then
+            -- Используем официальный удаленный вызов игры для перемещения между зонами
+            local teleportRemote = network:FindFirstChild("Teleports_Teleport") or network:FindFirstChild("Teleport") or network:FindFirstChild("Zoning_Teleport")
+            if teleportRemote and teleportRemote:IsA("RemoteFunction") then
+                teleportRemote:InvokeServer("Area " .. tostring(zoneID))
+            else
+                -- Резервный метод: перехват через систему карт, если ремот скрыт
+                local map = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("ActiveZones")
+                local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if map and root then
+                    for _, zone in ipairs(map:GetChildren()) do
+                        if zone.Name:match("^" .. tostring(zoneID) .. "%s") or zone.Name == tostring(zoneID) then
+                            root.CFrame = zone:GetPivot() + Vector3.new(0, 5, 0)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
 
 -- Создание интерфейса
 local ScreenGui = Instance.new("ScreenGui")
@@ -160,43 +195,40 @@ BtnTeleport.MouseButton1Click:Connect(function() switchTab(TeleportContent, BtnT
 BtnSettings.MouseButton1Click:Connect(function() switchTab(SettingsContent, BtnSettings) end)
 
 -- ==========================================
--- ИСПРАВЛЕННЫЙ АВТОФАРМ С ТЕЛЕПОРТОМ И СБОРОМ
+-- ОФИЦИАЛЬНЫЙ АВТОФАРМ С СЕТЕВОЙ СИНХРОНИЗАЦИЕЙ
 -- ==========================================
 local FarmToggle = Instance.new("TextButton")
 FarmToggle.Size = UDim2.new(1, 0, 0, 40)
 FarmToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-FarmToggle.Text = "Авто-ТП Фарм (Зона 38): ВЫКЛ"
+FarmToggle.Text = "Официальный Авто-Фарм: ВЫКЛ"
 FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
 FarmToggle.Font = Enum.Font.GothamBold; FarmToggle.TextSize = 11; FarmToggle.Parent = FarmContent
 Instance.new("UICorner", FarmToggle).CornerRadius = UDim.new(0, 6)
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Position = UDim2.new(0, 0, 0, 45); StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.BackgroundTransparency = 1; StatusLabel.Text = "Статус: Фарм отключен."
+StatusLabel.BackgroundTransparency = 1; StatusLabel.Text = "Статус: Фарм не активен."
 StatusLabel.TextColor3 = Color3.fromRGB(170, 170, 170); StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextSize = 11; StatusLabel.TextXAlignment = Enum.TextXAlignment.Left; StatusLabel.Parent = FarmContent
 
 FarmToggle.MouseButton1Click:Connect(function()
     getgenv().AutoFarmTeleport = not getgenv().AutoFarmTeleport
     if getgenv().AutoFarmTeleport then
-        FarmToggle.Text = "Авто-ТП Фарм (Зона 38): ВКЛ"
+        FarmToggle.Text = "Официальный Авто-Фарм: ВКЛ"
         FarmToggle.TextColor3 = Color3.fromRGB(75, 255, 75); FarmToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
         
         task.spawn(function()
             while getgenv().AutoFarmTeleport do
                 pcall(function()
+                    StatusLabel.Text = "Статус: Удерживаем Зону " .. tostring(getgenv().SelectedZoneID)
+                    
+                    -- Постоянно вызываем официальный серверный телепорт в выбранную локацию
+                    TeleportToServerZone(getgenv().SelectedZoneID)
+                    
+                    -- Сбор выпадающих предметов вокруг персонажа
                     local char = LocalPlayer.Character
                     local root = char and char:FindFirstChild("HumanoidRootPart")
-                    local targetCoords = ZoneCoordinates[getgenv().SelectedFarmZone]
-                    
-                    if root and targetCoords then
-                        -- Жестко держим игрока в зоне 38, если он отошел
-                        if (root.Position - targetCoords).Magnitude > 30 then
-                            root.CFrame = CFrame.new(targetCoords)
-                        end
-                        StatusLabel.Text = "Статус: Удержание позиции и сбор сфер..."
-                        
-                        -- Пакетный моментальный сбор сфер на этой позиции
+                    if root then
                         for _, obj in ipairs(Workspace:GetDescendants()) do
                             if (obj.Name == "Orb" or obj.Name == "Lootbag") and obj:IsA("BasePart") then
                                 obj.CFrame = root.CFrame
@@ -204,47 +236,41 @@ FarmToggle.MouseButton1Click:Connect(function()
                         end
                     end
                 end)
-                task.wait(0.2)
+                task.wait(0.3)
             end
         end)
     else
-        FarmToggle.Text = "Авто-ТП Фарм (Зона 38): ВЫКЛ"
+        FarmToggle.Text = "Официальный Авто-Фарм: ВЫКЛ"
         FarmToggle.TextColor3 = Color3.fromRGB(255, 75, 75); FarmToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-        StatusLabel.Text = "Статус: Фарм отключен."
+        StatusLabel.Text = "Статус: Фарм не активен."
     end
 end)
 
 -- ==========================================
--- ИСПРАВЛЕННЫЕ НАДЁЖНЫЕ ТЕЛЕПОРТЫ
+-- ПРОДВИНУТАЯ СЕТКА СЕРВЕРНЫХ ТЕЛЕПОРТОВ
 -- ==========================================
 local ScrollTeleport = Instance.new("ScrollingFrame")
 ScrollTeleport.Size = UDim2.new(1, 0, 1, 0); ScrollTeleport.BackgroundTransparency = 1
-ScrollTeleport.CanvasSize = UDim2.new(0, 0, 2, 0); ScrollTeleport.ScrollBarThickness = 2; ScrollTeleport.Parent = TeleportContent
+ScrollTeleport.CanvasSize = UDim2.new(0, 0, 2.5, 0); ScrollTeleport.ScrollBarThickness = 2; ScrollTeleport.Parent = TeleportContent
 
-local function createTpBtn(zoneKey, displayName, index)
+for i, zoneData in ipairs(GameZones) do
+    local zoneID = zoneData[1]
+    local zoneName = zoneData[2]
+    
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -6, 0, 32); btn.Position = UDim2.new(0, 0, 0, (index - 1) * 36)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40); btn.Text = "ТП в " .. displayName
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 11; btn.Parent = ScrollTeleport
+    btn.Size = UDim2.new(1, -6, 0, 32)
+    btn.Position = UDim2.new(0, 0, 0, (i - 1) * 36)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    btn.Text = "Выбрать: " .. zoneName
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold; btn.TextSize = 11; btn.Parent = ScrollTeleport
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
     
     btn.MouseButton1Click:Connect(function()
-        pcall(function()
-            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local coords = ZoneCoordinates[zoneKey]
-            if root and coords then
-                root.CFrame = CFrame.new(coords) -- Прямой телепорт по точным глобальным векторам
-            end
-        end)
+        getgenv().SelectedZoneID = zoneID -- Запоминаем ID зоны для автофарма
+        TeleportToServerZone(zoneID)     -- Мгновенно отправляем пакет телепортации на сервер
     end)
 end
-
-createTpBtn("1", "Зону 1 (Спавн)", 1)
-createTpBtn("10", "Зону 10 (Шахта)", 2)
-createTpBtn("20", "Зону 20 (Пустыня)", 3)
-createTpBtn("30", "Зону 30 (Пираты)", 4)
-createTpBtn("38", "Зону 38 (Ваш Каньон)", 5)
-createTpBtn("50", "Зону 50 (Самураи)", 6)
 
 -- ==========================================
 -- ВКЛАДКА: ЭВЕНТЫ
@@ -313,6 +339,6 @@ ShutdownButton.MouseButton1Click:Connect(function()
 end)
 
 game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-    Text = "[Legenda32Hub]: Успешно скачан с репозитория vovankalivan-sketch!",
+    Text = "[Legenda32Hub]: Код успешно обновлен на основе официальных ID зон!",
     Color = Color3.fromRGB(75, 255, 75), Font = Enum.Font.GothamBold, TextSize = 14
 })
