@@ -1,5 +1,5 @@
 -- =======================================================
--- ★ Legenda32Hub — Версия 2.0 (HookMetamethod Edition) ★
+-- ★ Legenda32Hub — Версия 4.0 (Noclip + Crystal Chest) ★
 -- =======================================================
 
 local UserInputService = game:GetService("UserInputService")
@@ -8,11 +8,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
--- 🌀 ПЕРЕДОВОЙ СЕТЕВОЙ ХУК ДЛЯ ГАРАНТИРОВАННОЙ РАБОТЫ ФУНКЦИЙ
-local NetworkBypass = {}
+-- Сетевой обход для вызова функций игры
 local RawRemoteFunc = nil
 local RawRemoteEvent = nil
 
@@ -34,7 +34,7 @@ local function InvokeNetworkFunc(...)
     if RawRemoteFunc then return RawRemoteFunc:InvokeServer(...) end
 end
 
--- БЕЗОПАСНОЕ ОПРЕДЕЛЕНИЕ ПАПКИ ИНТЕРФЕЙСА ДЛЯ DELTA EXECUTOR
+-- Безопасное определение папки интерфейса для Delta Executor
 local targetGuiFolder = player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
 
 if targetGuiFolder:FindFirstChild("Legenda32Hub_Gui") then
@@ -43,12 +43,15 @@ end
 
 _G.Legenda32Settings = {
     WalkSpeedBoost = 0,
-    AutoLastZone = false,
+    Noclip = false,
+    AutoFarmZone = false,
+    FarmZoneTarget = "Last",
     AutoRankQuests = false,
     AutoCollectRewards = false,
     AutoBeggingBot = false,
     AutoServerHop = false,
     AutoPlaceFlags = false,
+    AutoOpenCrystalChest = false,
     AntiAfk = false
 }
 
@@ -188,7 +191,7 @@ local function createTab(name, icon, order)
     end)
 end
 
--- Инициализация 5 вкладок (Events и Visuals удалены)
+-- Инициализация 5 мобильных вкладок
 createTab("Farm", "🌾", 1)
 createTab("Items", "🎒", 2)
 createTab("Player", "⚡", 3)
@@ -236,7 +239,7 @@ local function createToggle(parent, text, configKey, callback)
 end
 
 -- =======================================================
--- 📍 ВКЛАДКА [ ITEMS ]
+-- 📍 ВКЛАДКА [ ITEMS ] (Сундуки и Флаги)
 -- =======================================================
 createToggle(pages["Items"], "Auto Place Flags", "AutoPlaceFlags", function(toggled)
     while toggled and _G.Legenda32Settings.AutoPlaceFlags do
@@ -247,52 +250,96 @@ createToggle(pages["Items"], "Auto Place Flags", "AutoPlaceFlags", function(togg
     end
 end)
 
+createToggle(pages["Items"], "Auto Open Crystal Chest", "AutoOpenCrystalChest", function(toggled)
+    while toggled and _G.Legenda32Settings.AutoOpenCrystalChest do
+        -- Отправка пакетного запроса на открытие хрустального сундука (Crystal Chest)
+        FireNetworkEvent("CrystalChest: Open", "Crystal Key")
+        task.wait(1.5) -- Небольшая задержка анимации во избежание кика за спам
+    end
+end)
+
 createToggle(pages["Items"], "Auto Use Potions (Luck)", "Dummy1", function() end)
 createToggle(pages["Items"], "Auto Vending Machines", "Dummy2", function() end)
 
 -- =======================================================
 -- 📍 ВКЛАДКА [ FARM ]
 -- =======================================================
-local function table_getLastUnlockedZone()
+local function getTargetZoneFolder()
     local mapFolder = workspace:FindFirstChild("Map")
-    local lastZone = nil
-    local maxNum = -1
-    if mapFolder then
+    if not mapFolder then return nil end
+    
+    local targetInput = string.lower(tostring(_G.Legenda32Settings.FarmZoneTarget))
+    
+    if targetInput == "last" or targetInput == "0" or targetInput == "" then
+        local lastZone = nil
+        local maxNum = -1
         for _, zone in ipairs(mapFolder:GetChildren()) do
             local num = tonumber(string.match(zone.Name, "^(%d+)"))
             if num and num > maxNum then maxNum = num lastZone = zone end
         end
+        return lastZone
     end
-    return lastZone
+    
+    for _, zone in ipairs(mapFolder:GetChildren()) do
+        local zoneNameLower = string.lower(zone.Name)
+        if string.find(zoneNameLower, targetInput) then
+            return zone
+        end
+    end
+    return nil
 end
+
+local zoneTitleText = Instance.new("TextLabel")
+zoneTitleText.Size = UDim2.new(1, -5, 0, 20)
+zoneTitleText.BackgroundTransparency = 1
+zoneTitleText.Text = "Target Zone Name / Number (0 or Last = Auto)"
+zoneTitleText.TextColor3 = Color3.fromRGB(150, 150, 150)
+zoneTitleText.Font = Enum.Font.SourceSansBold
+zoneTitleText.TextSize = 13
+zoneTitleText.Parent = pages["Farm"]
+
+local zoneInput = Instance.new("TextBox")
+zoneInput.Size = UDim2.new(1, -5, 0, 38)
+zoneInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+zoneInput.Text = "Last"
+zoneInput.TextColor3 = Color3.fromRGB(0, 255, 150)
+zoneInput.Font = Enum.Font.SourceSansBold
+zoneInput.TextSize = 14
+zoneInput.Parent = pages["Farm"]
+local zic = Instance.new("UICorner") zic.CornerRadius = UDim.new(0, 6) zic.Parent = zoneInput
 
 local zoneLabel = Instance.new("TextLabel")
 zoneLabel.Size = UDim2.new(1, -5, 0, 35)
 zoneLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-zoneLabel.Text = "Detecting Zone..."
+zoneLabel.Text = "Detecting Target Zone..."
 zoneLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 zoneLabel.Font = Enum.Font.SourceSansItalic
 zoneLabel.TextSize = 14
 zoneLabel.Parent = pages["Farm"]
 local zc = Instance.new("UICorner") zc.CornerRadius = UDim.new(0, 6) zc.Parent = zoneLabel
 
+zoneInput.FocusLost:Connect(function()
+    local text = tostring(zoneInput.Text)
+    if text ~= "" then _G.Legenda32Settings.FarmZoneTarget = text else _G.Legenda32Settings.FarmZoneTarget = "Last" zoneInput.Text = "Last" end
+end)
+
 task.spawn(function()
     while true do
         if mainFrame.Visible and pages["Farm"].Visible then
-            local currentZone = table_getLastUnlockedZone()
+            local currentZone = getTargetZoneFolder()
             if currentZone then
-                zoneLabel.Text = "📍 Current Zone: " .. string.gsub(currentZone.Name, "^%d+%.%s*", "")
-            else zoneLabel.Text = "📍 Zone: Unknown" end
+                zoneLabel.Text = "📍 Farming Location: " .. string.gsub(currentZone.Name, "^%d+%.%s*", "")
+            else zoneLabel.Text = "❌ Location Not Found / Locked" end
         end
-        task.wait(2)
+        task.wait(1.5)
     end
 end)
 
-createToggle(pages["Farm"], "Auto Last Zone", "AutoLastZone", function(toggled)
-    while toggled and _G.Legenda32Settings.AutoLastZone do
-        local lastZone = table_getLastUnlockedZone()
-        if lastZone and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local targetPart = lastZone:FindFirstChild("PERSISTENT") or lastZone:FindFirstChild("Collider") or lastZone:FindFirstChildOfClass("Part")
+createToggle(pages["Farm"], "Auto Farm Selected Zone", "AutoFarmZone", function(toggled)
+    while toggled and _G.Legenda32Settings.AutoFarmZone do
+        local farmZone = getTargetZoneFolder()
+        if farmZone and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPart = farmZone:FindFirstChild("PERSISTENT") or farmZone:FindFirstChild("Collider") or farmZone:FindFirstChildOfClass("Part")
             if targetPart then
                 InvokeNetworkFunc("Hoverboard: Set State", true)
                 player.Character.HumanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 5, 0)
@@ -315,7 +362,6 @@ createToggle(pages["Farm"], "Auto Rank Quests", "AutoRankQuests", function(toggl
                 end
             end
         end
-        FireNetworkEvent("Rank: Claim Reward")
         task.wait(0.5)
     end
 end)
@@ -330,8 +376,26 @@ createToggle(pages["Farm"], "Auto Collect Rewards", "AutoCollectRewards", functi
 end)
 
 -- =======================================================
--- 📍 ВКЛАДКА [ PLAYER ]
+-- 📍 ВКЛАДКА [ PLAYER ] (WalkSpeed и Обновленный Noclip)
 -- =======================================================
+createToggle(pages["Player"], "Noclip (Walk Through Walls)", "Noclip", function(toggled)
+    -- Функция полностью отключает коллизию всех частей тела персонажа
+    local noclipConnection
+    if toggled then
+        noclipConnection = RunService.Stepped:Connect(function()
+            if _G.Legenda32Settings.Noclip and player.Character then
+                for _, part in ipairs(player.Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if noclipConnection then noclipConnection:Disconnect() end
+    end
+end)
+
 local speedTitle = Instance.new("TextLabel")
 speedTitle.Size = UDim2.new(1, -5, 0, 20)
 speedTitle.BackgroundTransparency = 1
@@ -420,8 +484,8 @@ createToggle(pages["Trading"], "Auto Begging Bot", "AutoBeggingBot", function(to
                     if p ~= player and (currentTrade:FindFirstChild(p.Name) or workspace:FindFirstChild("ActiveTrades")) then currentPartner = p break end
                 end
                 if currentPartner then
-                    local playerLang = getPlayerLanguage(currentPartner)
-                    local selectedPhrase = playerLang == "RU" and russianPhrases[math.random(1, #russianPhrases)] or englishPhrases[math.random(1, #englishPhrases)]
+                    local playerLang = player.LocaleId or "en-us"
+                    local selectedPhrase = string.find(string.lower(playerLang), "ru") and russianPhrases[math.random(1, #russianPhrases)] or englishPhrases[math.random(1, #englishPhrases)]
                     FireNetworkEvent("Trading: Send Message", selectedPhrase)
                 end
             end
@@ -484,7 +548,7 @@ aiGenerateBtn.Parent = pages["Misc"]
 local aicb = Instance.new("UICorner") aicb.CornerRadius = UDim.new(0, 6) aicb.Parent = aiGenerateBtn
 
 aiGenerateBtn.MouseButton1Click:Connect(function()
-    aiGenerateBtn.Text = "🧠 AI Engine: Оптимизация сети..."
+    aiGenerateBtn.Text = "🧠 AI Engine: Настройка коллизий и сундуков..."
     task.wait(1.5)
     
     _G.Legenda32Settings.AutoCollectRewards = true
@@ -494,7 +558,7 @@ aiGenerateBtn.MouseButton1Click:Connect(function()
     for key, val in pairs(_G.Legenda32Settings) do
         if activeToggles[key] then activeToggles[key].Update(val) task.spawn(activeToggles[key].Callback, val) end
     end
-    aiGenerateBtn.Text = "✅ Система стабилизирована!"
+    aiGenerateBtn.Text = "System Stabilized!"
     task.wait(1.5) aiGenerateBtn.Text = "⚡ Run AI Diagnostics"
 end)
 
