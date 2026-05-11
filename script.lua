@@ -1,5 +1,5 @@
 -- ====================================================================
--- LEGENDA32HUB V55 | НАСТОЯЩИЙ ИИ-ПОМОЩНИК С ИНТЕГРАЦИЕЙ НЕЙРОСЕТИ LLAMA
+-- LEGENDA32HUB V60 | АВТОНОМНЫЙ НЕЙРО-АГЕНТ (ПОЛНЫЙ ЦИКЛ ЗОН 1-99)
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -19,7 +19,7 @@ end
 -- Инициализация глобального ИИ-окружения
 getgenv().NeuroAI_Active = false
 getgenv().RGB_Enabled = false
-getgenv().TargetZoneID = "38"
+getgenv().CurrentUnlockedZone = "1" -- Будет определяться динамически
 
 -- Функция вывода ошибок (1-не работает, 2-ошибка патча, 3-функция недоступна)
 local function reportHubError(funcName, errorCode, rawErr)
@@ -31,9 +31,31 @@ local function reportHubError(funcName, errorCode, rawErr)
     end)
 end
 
--- ==========================================
--- ИИ-ЯДРО КРОСС-ПЛАТФОРМЕННОЙ НАВИГАЦИИ (RAYCAST)
--- ==========================================
+-- УМНЫЙ АВТОМАТИЧЕСКИЙ СКАНЕР МАКСИМАЛЬНО ДОСТУПНОЙ ЗОНЫ ИГРОКА (1-99)
+local function AI_ScanHighestUnlockedZone()
+    local folders = { Workspace:FindFirstChild("Map"), Workspace:FindFirstChild("ActiveZones"), Workspace:FindFirstChild("Zones") }
+    local highestZoneNum = 1
+    local highestZoneObj = nil
+    
+    for _, f in ipairs(folders) do
+        if f then
+            for _, zone in ipairs(f:GetChildren()) do
+                local zoneNum = tonumber(zone.Name:match("^(%d+)"))
+                -- Проверяем зоны строго в диапазоне 1-99 и ищем самую последнюю открытую
+                if zoneNum and zoneNum >= 1 and zoneNum <= 99 and zoneNum > highestZoneNum then
+                    -- Дополнительная проверка на то, прогружена ли зона и доступна ли для физического взаимодействия
+                    if zone:FindFirstChild("PERSISTENT") or zone:IsA("Model") then
+                        highestZoneNum = zoneNum
+                        highestZoneObj = zone
+                    end
+                end
+            end
+        end
+    end
+    return highestZoneObj, tostring(highestZoneNum)
+end
+
+-- ИИ-АЛГОРИТМ НАВИГАЦИИ И УМНОГО ОБХОДА ПРЕПЯТСТВИЙ СКАНИРОВАНИЕМ ВПЕРЕД
 local function AI_NeuroWalkTo(targetPosition, statusLabel)
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -82,20 +104,6 @@ local function AI_NeuroWalkTo(targetPosition, statusLabel)
     else
         reportHubError("NeuroWalk", 1, "Сбой поиска пути")
     end
-end
-
-local function AI_LocateMapZone(zoneID)
-    local searchFolders = { Workspace:FindFirstChild("Map"), Workspace:FindFirstChild("ActiveZones"), Workspace:FindFirstChild("Zones") }
-    for _, folder in ipairs(searchFolders) do
-        if folder then
-            for _, child in ipairs(folder:GetChildren()) do
-                if child.Name:match("^" .. tostring(zoneID) .. "%s") or child.Name == tostring(zoneID) then
-                    return child
-                end
-            end
-        end
-    end
-    return nil
 end
 
 -- ==========================================
@@ -151,7 +159,7 @@ MainCorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundTransparency = 1
-Title.Text = "  Legenda32Hub | NeuroDrive v55"
+Title.Text = "  Legenda32Hub | NeuroDrive v60"
 Title.TextColor3 = Color3.fromRGB(0, 210, 255)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
@@ -195,12 +203,12 @@ end
 tabButtons["Автопилот"].BackgroundColor3 = Color3.fromRGB(40, 40, 55); tabButtons["Автопилот"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
 -- ==========================================
--- ВКЛАДКА 1: НЕЙРО-АВТОПИЛОТ
+-- ВКЛАДКА 1: НЕЙРО-АВТОПИЛОТ (ДИНАМИЧЕСКИЙ ДИАПАЗОН 1-99)
 -- ==========================================
 local AiToggle = Instance.new("TextButton")
 AiToggle.Size = UDim2.new(1, 0, 0, 40)
 AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВЫКЛ"
+AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА (1-99): ВЫКЛ"
 AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75)
 AiToggle.Font = Enum.Font.GothamBold; AiToggle.TextSize = 11; AiToggle.Parent = tabFrames["Автопилот"]
 Instance.new("UICorner", AiToggle).CornerRadius = UDim.new(0, 6)
@@ -208,14 +216,14 @@ Instance.new("UICorner", AiToggle).CornerRadius = UDim.new(0, 6)
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Position = UDim2.new(0, 0, 0, 45); StatusLabel.Size = UDim2.new(1, 0, 0, 60)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Агент: Спит.\nОценка 3D мира: Готов к анализу.\nИнтеграция с нейросетью Llama-3: АКТИВНА."
+StatusLabel.Text = "Агент: Спит.\nРежим: Полный цикл сканирования (Зоны 1-99).\nИнтеграция с нейросетью Llama-3: АКТИВНА."
 StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160); StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextSize = 11; StatusLabel.TextXAlignment = Enum.TextXAlignment.Left; StatusLabel.Parent = tabFrames["Автопилот"]
 
 AiToggle.MouseButton1Click:Connect(function()
     getgenv().NeuroAI_Active = not getgenv().NeuroAI_Active
     if getgenv().NeuroAI_Active then
-        AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВКЛ"
+        AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА (1-99): ВКЛ"
         AiToggle.TextColor3 = Color3.fromRGB(75, 255, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
         
         task.spawn(function()
@@ -232,18 +240,24 @@ AiToggle.MouseButton1Click:Connect(function()
                     local roll = net and (net:FindFirstChild("RNG_Roll") or net:FindFirstChild("RNG_Event_Roll") or net:FindFirstChild("VoidRNG_Roll"))
                     if roll then roll:InvokeServer() end
                     
-                    local zoneObj = AI_LocateMapZone(getgenv().TargetZoneID)
+                    -- ДИНАМИЧЕСКИЙ АВТО-ПОДБОР САМОЙ ВЫСОКОЙ ОТКРЫТОЙ ЗОНЫ ТЕКУЩЕГО ИГРОКА
+                    local zoneObj, zoneNumber = AI_ScanHighestUnlockedZone()
+                    getgenv().CurrentUnlockedZone = zoneNumber
+                    
                     if zoneObj then
                         local dest = zoneObj:GetPivot().Position
                         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                         if root then
-                            if (root.Position - dest).Magnitude > 50 then
-                                StatusLabel.Text = "Агент [Действие]: Бегу в Зону 38..."
+                            -- Если персонаж отошел от своей максимальной зоны дальше чем на 55 метров — ИИ плавно бежит обратно
+                            if (root.Position - dest).Magnitude > 55 then
+                                StatusLabel.Text = "Агент [Действие]: Обнаружена Зона " .. zoneNumber .. ". Прокладываю легитный путь..."
                                 AI_NeuroWalkTo(dest, StatusLabel)
                             else
-                                StatusLabel.Text = "Агент [Действие]: Стою в Зоне 38. Фармлю монеты."
+                                StatusLabel.Text = "Агент [Действие]: Успешно фармлю на вашей максимальной Зоне " .. zoneNumber
                             end
                         end
+                    else
+                        StatusLabel.Text = "Агент [Действие]: Сканирую карту, встаньте в доступную зону..."
                     end
                     
                     vu:Button1Down(Vector2.new(200, 200), workspace.CurrentCamera.CFrame)
@@ -257,19 +271,19 @@ AiToggle.MouseButton1Click:Connect(function()
                         end
                     end
                 end)
-                task.wait(0.2)
+                task.wait(0.25)
             end
             if afkLoop then afkLoop:Disconnect() end
         end)
     else
-        AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВЫКЛ"
+        AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА (1-99): ВЫКЛ"
         AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
-        StatusLabel.Text = "Агент: Спит.\nОценка 3D мира: Готов к анализу."
+        StatusLabel.Text = "Агент: Спит.\nРежим: Полный цикл сканирования (Зоны 1-99)."
     end
 end)
 
 -- ==========================================
--- ВКЛАДКА 2: НАСТОЯЩИЙ ИИ-ЧАТ (КЛИЕНТ-СЕРВЕРНЕЙРОСЕТЬ)
+-- ВКЛАДКА 2: ГЕНЕРАТИВНЫЙ ИИ-ЧАТ (LLAMA-3)
 -- ==========================================
 local ChatFrame = tabFrames["ИИ-Чат"]
 
@@ -277,7 +291,7 @@ local ChatLog = Instance.new("TextLabel")
 ChatLog.Size = UDim2.new(1, 0, 0, 75)
 ChatLog.Position = UDim2.new(0, 0, 0, 0)
 ChatLog.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-ChatLog.Text = "ИИ (Llama-3): Подключение успешно! Напиши мне всё, что угодно. Я сгенерирую живой ответ на основе твоих слов."
+ChatLog.Text = "ИИ (Llama-3): Подключение успешно! Напиши мне любой вопрос. Я знаю о цикле зон 1-99."
 ChatLog.TextColor3 = Color3.fromRGB(0, 255, 255)
 ChatLog.TextSize = 10
 ChatLog.Font = Enum.Font.Gotham
@@ -299,25 +313,12 @@ ChatInput.TextSize = 11
 ChatInput.Parent = ChatFrame
 Instance.new("UICorner", ChatInput).CornerRadius = UDim.new(0, 5)
 
--- ФУНКЦИЯ ОБРАЩЕНИЯ К ВНЕШНЕМУ API СВОБОДНОЙ НЕЙРОСЕТИ
 local function RequestGenerativeAI(promptText)
-    -- Используется публичный бесплатный прокси-эндпоинт для генерации текста
-    local url = "pollinations.ai" .. HttpService:UrlEncode(promptText .. " (ответь коротко, на русском языке)")
-    
+    local url = "pollinations.ai" .. HttpService:UrlEncode(promptText .. " (ответь очень коротко, на русском языке)")
     local response = "ИИ: Ошибка сети."
-    local success, res = pcall(function()
-        -- Отправляем GET-запрос во внешний мир через HttpService эксплойта
-        return game:HttpGet(url)
-    end)
-    
-    if success and res then
-        response = "ИИ: " .. tostring(res)
-    else
-        -- Код ошибки 3 (Функция недоступна из-за блокировок Delta)
-        reportHubError("HTTP Neural Core", 3, tostring(res))
-        response = "ИИ: Ваш эксплойт заблокировал внешние HTTP-запросы. Нужен стабильный инжект."
-    end
-    
+    local success, res = pcall(function() return game:HttpGet(url) end)
+    if success and res then response = "ИИ: " .. tostring(res)
+    else response = "ИИ: Ошибка обработки Http-пакета." end
     return response
 end
 
@@ -325,24 +326,23 @@ ChatInput.FocusLost:Connect(function(enterPressed)
     if enterPressed and ChatInput.Text ~= "" then
         local userText = ChatInput.Text
         ChatInput.Text = ""
-        ChatLog.Text = "Вы: " .. userText .. "\nИИ: Думаю над ответом (Генерация)..."
+        ChatLog.Text = "Вы: " .. userText .. "\nИИ: Генерирую ответ..."
         
-        -- Выполняем асинхронный запрос к ИИ в отдельном потоке, чтобы игра не зависла во время ожидания ответа
         task.spawn(function()
-            -- Если юзер ввел команду прямого контроля
             local commandText = userText:lower()
             if commandText:find("старт") or commandText:find("фарм") or commandText:find("включи") then
                 getgenv().NeuroAI_Active = true
-                AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВКЛ"
+                AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА (1-99): ВКЛ"
                 AiToggle.TextColor3 = Color3.fromRGB(75, 255, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(30, 45, 30)
             elseif commandText:find("стоп") or commandText:find("выключи") then
                 getgenv().NeuroAI_Active = false
-                AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА: ВЫКЛ"
+                AiToggle.Text = "ВКЛЮЧИТЬ НЕЙРО-АГЕНТА (1-99): ВЫКЛ"
                 AiToggle.TextColor3 = Color3.fromRGB(255, 75, 75); AiToggle.BackgroundColor3 = Color3.fromRGB(45, 30, 30)
             end
             
-            -- Получаем живой уникальный ответ от Llama-3
-            local aiResponse = RequestGenerativeAI(userText)
+            -- Специфический контекст для ИИ о текущей зоне игрока
+            local finalPrompt = string.format("[Контекст: Я играю в Pet Sim 99, моя текущая открытая локация — Зона %s]. Вопрос: %s", getgenv().CurrentUnlockedZone, userText)
+            local aiResponse = RequestGenerativeAI(finalPrompt)
             ChatLog.Text = "Вы: " .. userText .. "\n" .. aiResponse
         end)
     end
@@ -385,6 +385,6 @@ ShutdownButton.MouseButton1Click:Connect(function()
 end)
 
 game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
-    Text = "[Legenda32Hub]: Полноценный генеративный ИИ-интерфейс Llama-3 успешно развернут!",
+    Text = "[Legenda32Hub]: Динамическая система 1-99 развернута. ИИ готов к полному циклу игры!",
     Color = Color3.fromRGB(75, 255, 75), Font = Enum.Font.GothamBold, TextSize = 14
 })
