@@ -1,10 +1,10 @@
--- Инициализация и обход лимитов Xeno
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
+-- Полная очистка предыдущих интерфейсов
 local TargetGui = game:GetService("CoreGui"):FindFirstChild("SkeetMenu_BS") or LocalPlayer.PlayerGui:FindFirstChild("SkeetMenu_BS")
 if TargetGui then TargetGui:Destroy() end
 
@@ -15,6 +15,22 @@ SkeetMenu.DisplayOrder = 9999
 SkeetMenu.ResetOnSpawn = false
 SkeetMenu.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
+-- =================================================================
+-- КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ МЕНЮ (ВЗАМЕН КЛАВИШИ DELETE)
+-- =================================================================
+local MenuButton = Instance.new("TextButton")
+MenuButton.Name = "ToggleButton"
+MenuButton.Parent = SkeetMenu
+MenuButton.Position = UDim2.new(0, 10, 0, 10)
+MenuButton.Size = UDim2.new(0, 100, 0, 25)
+MenuButton.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+MenuButton.BorderColor3 = Color3.fromRGB(163, 212, 47)
+MenuButton.BorderSizePixel = 1
+MenuButton.Font = Enum.Font.Code
+MenuButton.Text = " GAMESENSE "
+MenuButton.TextColor3 = Color3.fromRGB(163, 212, 47)
+MenuButton.TextSize = 11
+
 -- Главное меню Skeet
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -24,30 +40,32 @@ MainFrame.BorderColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.BorderSizePixel = 1
 MainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
 MainFrame.Size = UDim2.new(0, 520, 0, 360)
+MainFrame.Visible = true
 
--- Оригинальная неоновая линия сверху
+-- Логика переключения кнопкой
+MenuButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- Зеленая неоновая линия Skeet
 local Line = Instance.new("Frame")
 Line.Parent = MainFrame
 Line.BackgroundColor3 = Color3.fromRGB(163, 212, 47)
 Line.BorderSizePixel = 0
 Line.Size = UDim2.new(1, 0, 0, 2)
 
--- Скрипт бинда: Открытие / Закрытие на клавишу DELETE
-UIS.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.Delete then
-        MainFrame.Visible = not MainFrame.Visible
-    end
-end)
-
--- Таблица состояний функций (Конфиг)
+-- Конфигурация функций
 local Config = {
     Aimbot = false,
     SilentAim = false,
+    NoRecoil = false,
     EspBoxes = false,
-    NoRecoil = false
+    EspChams = false
 }
 
--- Групповые коробки (Groupboxes) как в Skeet
+-- =================================================================
+-- СОЗДАНИЕ ОРИГИНАЛЬНЫХ РАЗДЕЛОВ (GROUPBOXES)
+-- =================================================================
 local function CreateGroupbox(title, position, size)
     local Box = Instance.new("Frame")
     Box.Parent = MainFrame
@@ -74,7 +92,7 @@ local function CreateGroupbox(title, position, size)
     return Box
 end
 
--- Создаем две колонки: Rage (Аим) и Visuals (Валхак)
+-- Распределяем разделы по позициям
 local RageBox = CreateGroupbox("Ragebot", UDim2.new(0, 15, 0, 25), UDim2.new(0.46, 0, 0.9, 0))
 local VisualsBox = CreateGroupbox("Visuals", UDim2.new(0.52, 0, 0.25, 0), UDim2.new(0.46, 0, 0.9, 0))
 
@@ -111,17 +129,18 @@ local function AddToggle(name, parent, config_key)
     end)
 end
 
--- Наполняем меню кнопками
+-- Перенос функций СТРОГО ПО ИХ РАЗДЕЛАМ
 AddToggle("Enabled Aimbot", RageBox, "Aimbot")
 AddToggle("Silent Aim", RageBox, "SilentAim")
 AddToggle("Remove Recoil", RageBox, "NoRecoil")
+
 AddToggle("Player Boxes", VisualsBox, "EspBoxes")
+AddToggle("Chams (Wallhack)", VisualsBox, "EspChams")
 
-----------------------------------------------------------------
--- РАБОЧИЙ ФУНКЦИОНАЛ ДЛЯ BLOX STRIKE
-----------------------------------------------------------------
+-- =================================================================
+-- РАБОЧИЙ ФУНКЦИОНАЛ ДЛЯ BLOX STRIKE И ВАЛХАК (ESP)
+-- =================================================================
 
--- Поиск ближайшего противника
 local function GetClosestPlayer()
     local closest = nil
     local maxDist = math.huge
@@ -141,45 +160,35 @@ local function GetClosestPlayer()
     return closest
 end
 
--- Логика Аимбота и Сайлент Аима (Каждый кадр)
+-- Логика Аимбота, Сайлент Аима и No Recoil
 RunService.RenderStepped:Connect(function()
     local target = GetClosestPlayer()
-    if target and target:FindFirstChild("Head") then
-        -- Обычный жесткий Аимбот (Наведение камеры)
-        if Config.Aimbot then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position)
-        end
+    if target and target:FindFirstChild("Head") and Config.Aimbot then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position)
     end
     
-    -- Функция No Recoil (Антиотдача) через зануление смещения осей
     if Config.NoRecoil then
         pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Animate") then
-                -- Патч локальных значений отдачи оружия в Blox Strike
-                for _, v in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-                    if v:IsA("NumberValue") and (v.Name == "Recoil" or v.Name == "Spread") then
-                        v.Value = 0
-                    end
+            for _, v in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+                if v:IsA("NumberValue") and (v.Name == "Recoil" or v.Name == "Spread") then
+                    v.Value = 0
                 end
             end
         end)
     end
 end)
 
--- Логика Сайлент Аима (Перехват выстрела через хук метатаблицы Xeno)
+-- Сайлент Аим хук через метатаблицу Xeno
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
-
 mt.__namecall = newcstackclosure(function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
-    
     if Config.SilentAim and (method == "FireServer" or method == "InvokeServer") and self.Name == "Shoot" then
         local target = GetClosestPlayer()
         if target and target:FindFirstChild("Head") then
-            -- Подменяем координаты направления пули на голову противника
-            args[1] = target.Head.Position
+            args = target.Head.Position
             return oldNamecall(self, unpack(args))
         end
     end
@@ -187,36 +196,64 @@ mt.__namecall = newcstackclosure(function(self, ...)
 end)
 setreadonly(mt, true)
 
--- Функция создания ESP бокса
-local function CreateEsp(player)
-    local Box = Instance.new("BoxHandleAdornment")
-    Box.Name = "SkeetESP"
-    Box.AlwaysOnTop = true
-    Box.ZIndex = 5
-    Box.Adornee = player.Character
-    Box.Color3 = Color3.fromRGB(163, 212, 47) -- Зеленый Skeet цвет
-    Box.Size = Vector3.new(4, 5.5, 1)
-    Box.Transparency = 0.5
-    
-    -- Проверка на то, чтобы ESP обновлялось динамически
-    player.CharacterAdded:Connect(function(char)
+-- =================================================================
+-- НАСТОЯЩИЙ РАБОЧИЙ WALLHACK (ESP И CHAMS) ДЛЯ BLOX STRIKE
+-- =================================================================
+local function ApplyWallhack(player)
+    local function SetupCharacterVisuals(char)
+        if not char then return end
+        
+        -- Удаляем старые следы валхака, если они есть
+        for _, old in pairs(char:GetChildren()) do
+            if old.Name == "Skeet_Chams" or old.Name == "Skeet_Box" then old:Destroy() end
+        end
+
+        -- 1. Создание Chams (Подсветка тела сквозь стены)
+        local Highlight = Instance.new("Highlight")
+        Highlight.Name = "Skeet_Chams"
+        Highlight.Parent = char
+        Highlight.FillColor = Color3.fromRGB(163, 212, 47) -- Зеленый Skeet
+        Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        Highlight.FillTransparency = 0.4
+        Highlight.OutlineTransparency = 0.1
+        Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+        -- 2. Создание Box ESP (Отображение рамок)
+        local Box = Instance.new("BoxHandleAdornment")
+        Box.Name = "Skeet_Box"
+        Box.Parent = char
+        Box.AlwaysOnTop = true
+        Box.ZIndex = 5
         Box.Adornee = char
-    end)
-    
-    RunService.RenderStepped:Connect(function()
-        Box.Visible = Config.EspBoxes and (player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0) or false
-    end)
+        Box.Color3 = Color3.fromRGB(163, 212, 47)
+        Box.Size = Vector3.new(4, 5.5, 1)
+        Box.Transparency = 0.6
+
+        -- Динамическое обновление видимости валхака
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            if not char:IsDescendantOf(workspace) or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
+                connection:Disconnect()
+                return
+            end
+            Highlight.Enabled = Config.EspChams
+            Box.Visible = Config.EspBoxes
+        end)
+    end
+
+    if player.Character then SetupCharacterVisuals(player.Character) end
+    player.CharacterAdded:Connect(SetupCharacterVisuals)
 end
 
--- Вешаем ESP на игроков
+-- Внедрение Валхака во всех игроков матча Blox Strike
 for _, p in pairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer then pcall(CreateEsp, p) end
+    if p ~= LocalPlayer then ApplyWallhack(p) end
 end
 Players.PlayerAdded:Connect(function(p)
-    if p ~= LocalPlayer then p.CharacterAdded:Connect(function() pcall(CreateEsp, p) end) end
+    if p ~= LocalPlayer then p.CharacterAdded:Connect(function() ApplyWallhack(p) end) end
 end)
 
--- Скрипт плавного перемещения меню мышкой
+-- Плавный Drag для меню мышкой
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
