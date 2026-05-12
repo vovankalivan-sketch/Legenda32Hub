@@ -4,7 +4,7 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
--- Полная очистка предыдущих сессий перед запуском
+-- Полное уничтожение старых интерфейсов перед запуском
 local OldGui = game:GetService("CoreGui"):FindFirstChild("SkeetMenu_BS") or LocalPlayer.PlayerGui:FindFirstChild("SkeetMenu_BS")
 if OldGui then OldGui:Destroy() end
 
@@ -79,7 +79,7 @@ UnloadButton.Font = Enum.Font.Code
 UnloadButton.Text = "UNLOAD"
 UnloadButton.TextColor3 = Color3.fromRGB(240, 70, 70)
 UnloadButton.TextSize = 11
-UnloadButton.ZIndex = 12
+UnloadButton.ZIndex = 99
 
 -- Контейнер для отображения страниц контента
 local PageContainer = Instance.new("Frame")
@@ -99,7 +99,7 @@ local Connections = {}
 local Pages = {}
 local TabButtons = {}
 
--- Исправленный конструктор вкладок и страниц (Ошибка Position устранена)
+-- ПОЛНОСТЬЮ ПЕРЕПИСАННЫЙ КОНСТРУКТОР СТРАНИЦ БЕЗ ИСПОЛЬЗОВАНИЯ UIListLayout ВНУТРИ
 local function CreatePage(name, order)
     local TabButton = Instance.new("TextButton")
     TabButton.Parent = LeftTabs
@@ -138,10 +138,18 @@ local function CreatePage(name, order)
     GroupboxLabel.TextSize = 10
     GroupboxLabel.ZIndex = 14
 
-    local ElementsLayout = Instance.new("UIListLayout")
-    ElementsLayout.Parent = Groupbox
-    ElementsLayout.Padding = UDim.new(0, 6)
-    -- Ошибка исправлена: свойство Position для UIListLayout больше не задается
+    -- Кастомное позиционирование элементов списком через Frame вместо UIListLayout
+    local ContentHolder = Instance.new("Frame")
+    ContentHolder.Parent = Groupbox
+    ContentHolder.BackgroundTransparency = 1
+    ContentHolder.Position = UDim2.new(0, 0, 0, 12)
+    ContentHolder.Size = UDim2.new(1, 0, 1, -12)
+    ContentHolder.ZIndex = 14
+
+    local ElementLayoutizer = Instance.new("UIListLayout")
+    ElementLayoutizer.Parent = ContentHolder
+    ElementLayoutizer.Padding = UDim.new(0, 6)
+    ElementLayoutizer.SortOrder = Enum.SortOrder.LayoutOrder
 
     TabButton.MouseButton1Click:Connect(function()
         for _, p in pairs(Pages) do p.Visible = false end
@@ -152,16 +160,16 @@ local function CreatePage(name, order)
 
     Pages[name] = Page
     table.insert(TabButtons, TabButton)
-    return Groupbox
+    return ContentHolder
 end
 
--- Модульный конструктор чекбоксов
+-- Конструктор чекбоксов
 local function AddToggle(name, parent, config_key)
     local Frame = Instance.new("Frame")
     Frame.Parent = parent
     Frame.BackgroundTransparency = 1
     Frame.Size = UDim2.new(1, 0, 0, 20)
-    Frame.ZIndex = 14
+    Frame.ZIndex = 15
 
     local Box = Instance.new("TextButton")
     Box.Parent = Frame
@@ -170,7 +178,7 @@ local function AddToggle(name, parent, config_key)
     Box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     Box.BorderColor3 = Color3.fromRGB(50, 50, 50)
     Box.Text = ""
-    Box.ZIndex = 16
+    Box.ZIndex = 17
 
     local Label = Instance.new("TextLabel")
     Label.Parent = Frame
@@ -182,7 +190,7 @@ local function AddToggle(name, parent, config_key)
     Label.TextColor3 = Color3.fromRGB(150, 150, 150)
     Label.TextSize = 11
     Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.ZIndex = 15
+    Label.ZIndex = 16
 
     Box.MouseButton1Click:Connect(function()
         Config[config_key] = not Config[config_key]
@@ -191,13 +199,13 @@ local function AddToggle(name, parent, config_key)
     end)
 end
 
--- Инициализация всех 4 вкладок
+-- Инициализация всех вкладок
 local RageSection = CreatePage("Rage", 1)
 local LegitSection = CreatePage("Legit", 2)
 local VisualsSection = CreatePage("Visuals", 3)
 local MiscSection = CreatePage("Misc", 4)
 
--- Наполнение вкладок функциями
+-- Наполнение функций
 AddToggle("Enabled Aimbot", RageSection, "Aimbot")
 AddToggle("Silent Aim", RageSection, "SilentAim")
 AddToggle("Remove Recoil", RageSection, "NoRecoil")
@@ -209,12 +217,12 @@ AddToggle("Chams Wallhack (Enemy)", VisualsSection, "EspChams")
 
 AddToggle("BunnyHop (Space)", MiscSection, "BunnyHop")
 
--- Установка дефолтного состояния (Активен Rage при запуске)
+-- Установка дефолтной страницы
 Pages["Rage"].Visible = true
 TabButtons[1].TextColor3 = Color3.fromRGB(163, 212, 47)
 
 -- =================================================================
--- ЛОГИКА ФУНКЦИЙ
+-- ФУНКЦИОНАЛЬНАЯ ЛОГИКА СНАЙПИНГА И ПЕРЕМЕЩЕНИЙ
 -- =================================================================
 
 local function IsEnemy(player)
@@ -237,7 +245,6 @@ local function GetClosestPlayer()
     return closest
 end
 
--- Изолированный поток под Аимбот и НоуРекоил
 table.insert(Connections, RunService.RenderStepped:Connect(function()
     local target = GetClosestPlayer()
     if target and target:FindFirstChild("Head") and Config.Aimbot then
@@ -253,7 +260,6 @@ table.insert(Connections, RunService.RenderStepped:Connect(function()
     end
 end))
 
--- Изолированный поток BunnyHop
 table.insert(Connections, RunService.PreRender:Connect(function()
     if Config.BunnyHop and UIS:IsKeyDown(Enum.KeyCode.Space) then
         local char = LocalPlayer.Character
@@ -263,7 +269,6 @@ table.insert(Connections, RunService.PreRender:Connect(function()
     end
 end))
 
--- Сайлент Аим хук метатаблицы Xeno
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
@@ -297,7 +302,7 @@ local function ApplyWallhack(player)
         local Highlight = Instance.new("Highlight")
         Highlight.Name = "Skeet_Chams"
         Highlight.Parent = char
-        Highlight.FillColor = Color3.fromRGB(240, 50, 50) -- Красный для врагов
+        Highlight.FillColor = Color3.fromRGB(240, 50, 50)
         Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
         Highlight.FillTransparency = 0.4
         Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
