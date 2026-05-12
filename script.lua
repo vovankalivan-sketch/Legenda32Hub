@@ -1,157 +1,142 @@
--- Загрузка точной копии UI библиотеки Gamesense
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/focat69/gamesense/refs/heads/main/source"))()
+-- Либа для создания интерфейса (Упрощенный вариант Skeet Style)
+local SkeetMenu = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local LeftPanel = Instance.new("Frame")
+local TabContainer = Instance.new("UIListLayout")
+local ContentPanel = Instance.new("Frame")
+local DecorationBar = Instance.new("Frame")
 
--- Создание точной копии оригинального окна Skeet (зеленый акцент на "sense")
-local Window = Library:New({
-    Name = "gamesense",
-    Padding = 6
-})
+-- Настройки основного окна
+SkeetMenu.Name = "SkeetMenu"
+SkeetMenu.Parent = game.CoreGui
+SkeetMenu.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Сервисы Roblox для работы функций
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = SkeetMenu
+MainFrame.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+MainFrame.BorderColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderSizePixel = 1
+MainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
+MainFrame.Size = UDim2.new(0, 550, 0, 400)
+MainFrame.Active = true
+MainFrame.Draggable = true -- Позволяет двигать меню
 
--- Таблицы состояний (Config)
-local Config = {
-    Rage = { SilentAim = false, Wallbang = false, HitboxSize = 2, AntiAim = false, SpinSpeed = 50 },
-    Legit = { Triggerbot = false },
-    Visuals = { EspBoxes = false, EspTracers = false, EspNames = false, EspColor = Color3.fromRGB(0, 255, 140) },
-    Misc = { BunnyHop = false, NoRecoil = false, FovMultiplier = 1 }
-}
+-- Фирменная градиентная полоска Skeet сверху
+DecorationBar.Name = "DecorationBar"
+DecorationBar.Parent = MainFrame
+DecorationBar.BackgroundColor3 = Color3.fromRGB(150, 200, 60) -- Зеленый цвет Gamesense
+DecorationBar.BorderSizePixel = 0
+DecorationBar.Size = UDim2.new(1, 0, 0, 3)
 
--- ==========================================
--- 1. ВКЛАДКА: RAGE (Жёсткий аимбот / HvH)
--- ==========================================
-local RageTab = Window:CreateTab({ Name = "Rage" })
+-- Левая панель для вкладок (Rage, Legit, Visuals, Misc)
+LeftPanel.Name = "LeftPanel"
+LeftPanel.Parent = MainFrame
+LeftPanel.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+LeftPanel.BorderColor3 = Color3.fromRGB(30, 30, 30)
+LeftPanel.Position = UDim2.new(0, 5, 0, 10)
+LeftPanel.Size = UDim2.new(0, 110, 1, -15)
 
-RageTab:Button({ Name = "Enable Ragebot" }) -- Визуальный маркер
+TabContainer.Parent = LeftPanel
+TabContainer.SortOrder = Enum.SortOrder.LayoutOrder
+TabContainer.Padding = UDim.new(0, 2)
 
--- Сектор Аима
-RunService.RenderStepped:Connect(function()
-    if Config.Rage.SilentAim then
-        -- Поиск ближайшей головы противника
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team and player.Character and player.Character:FindFirstChild("Head") then
-                local Head = player.Character.Head
-                if Config.Rage.Wallbang or player.Character:FindFirstChild("HumanoidRootPart") then
-                    -- Модификация хитбокса (Hitbox Expander)
-                    Head.Size = Vector3.new(Config.Rage.HitboxSize, Config.Rage.HitboxSize, Config.Rage.HitboxSize)
-                    Head.CanCollide = false
-                end
+-- Правая панель для контента
+ContentPanel.Name = "ContentPanel"
+ContentPanel.Parent = MainFrame
+ContentPanel.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+ContentPanel.BorderColor3 = Color3.fromRGB(30, 30, 30)
+ContentPanel.Position = UDim2.new(0, 120, 0, 10)
+ContentPanel.Size = UDim2.new(1, -125, 1, -15)
+
+-- Функция создания вкладки
+local function CreateTab(name, order)
+    local Tab = Instance.new("TextButton")
+    Tab.Name = name .. "Tab"
+    Tab.Parent = LeftPanel
+    Tab.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+    Tab.BorderSizePixel = 0
+    Tab.Size = UDim2.new(1, 0, 0, 35)
+    Tab.Font = Enum.Font.Code
+    Tab.Text = name:upper()
+    Tab.TextColor3 = Color3.fromRGB(150, 150, 150)
+    Tab.TextSize = 13
+    Tab.LayoutOrder = order
+
+    Tab.MouseButton1Click:Connect(function()
+        for _, child in pairs(LeftPanel:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.TextColor3 = Color3.fromRGB(150, 150, 150)
             end
         end
-    end
-    
-    -- Функция Anti-Aim (Вращение тела для защиты от чужих аимов)
-    if Config.Rage.AntiAim and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(Config.Rage.SpinSpeed), 0)
-    end
-end)
-
--- Элементы интерфейса Rage
--- (Имитация функций скеета: переключатели и ползунки)
--- Примечание: В реальной библиотеке Skeet элементы привязываются через логику Tab:Компонент
-
--- ==========================================
--- 2. ВКЛАДКА: LEGIT (Незаметная игра)
--- ==========================================
-local LegitTab = Window:CreateTab({ Name = "Legit" })
-
--- Автовыстрел при наведении (Triggerbot)
-RunService.RenderStepped:Connect(function()
-    if Config.Legit.Triggerbot then
-        local Mouse = LocalPlayer:GetMouse()
-        if Mouse.Target and Mouse.Target.Parent:FindFirstChild("Humanoid") then
-            local targetPlayer = Players:GetPlayerFromCharacter(Mouse.Target.Parent)
-            if targetPlayer and targetPlayer.Team ~= LocalPlayer.Team then
-                -- Эмуляция клика / выстрела (зависит от структуры оружия в Blox Strike)
-                print("[Skeet] Triggerbot: Выстрел!")
-            end
-        end
-    end
-end)
-
--- ==========================================
--- 3. ВКЛАДКА: VISUALS (Продвинутый ESP / Валхак)
--- ==========================================
-local VisualsTab = Window:CreateTab({ Name = "Visuals" })
-
--- Логика отрисовки 2D ESP (Boxes / Трейсеры)
-local function CreateESP(player)
-    local Box = Drawing.new("Square")
-    Box.Visible = false
-    Box.Color = Config.Visuals.EspColor
-    Box.Thickness = 1
-    Box.Filled = false
-
-    local Tracer = Drawing.new("Line")
-    Tracer.Visible = false
-    Tracer.Color = Config.Visuals.EspColor
-    Tracer.Thickness = 1
-
-    RunService.RenderStepped:Connect(function()
-        if player and player.Character outdoors and player.Character:FindFirstChild("HumanoidRootPart") and player ~= LocalPlayer and player.Team ~= LocalPlayer.Team then
-            local RootPart = player.Character.HumanoidRootPart
-            local Position, OnScreen = Camera:WorldToViewportPoint(RootPart.Position)
-
-            if OnScreen then
-                -- Логика Боксов (Квадраты вокруг врагов)
-                if Config.Visuals.EspBoxes then
-                    Box.Size = Vector2.new(2000 / Position.Z, 3000 / Position.Z)
-                    Box.Position = Vector2.new(Position.X - Box.Size.X / 2, Position.Y - Box.Size.Y / 2)
-                    Box.Visible = true
-                else
-                    Box.Visible = false
-                end
-
-                -- Логика Трейсеров (Линии до врагов)
-                if Config.Visuals.EspTracers then
-                    Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                    Tracer.To = Vector2.new(Position.X, Position.Y)
-                    Tracer.Visible = true
-                else
-                    Tracer.Visible = false
-                end
-            else
-                Box.Visible = false
-                Tracer.Visible = false
-            end
-        else
-            Box.Visible = false
-            Tracer.Visible = false
-        end
+        Tab.TextColor3 = Color3.fromRGB(150, 200, 60) -- Подсветка активной вкладки
     end)
 end
 
--- Включение ESP для всех текущих и новых игроков
-for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
-Players.PlayerAdded:Connect(CreateESP)
+-- Функция создания чекбокса (Включателя)
+local function CreateToggle(name, parent, default, callback)
+    local ToggleFrame = Instance.new("Frame")
+    local ToggleButton = Instance.new("TextButton")
+    local ToggleLabel = Instance.new("TextLabel")
+    
+    ToggleFrame.Name = name .. "Frame"
+    ToggleFrame.Parent = parent
+    ToggleFrame.BackgroundTransparency = 1
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 25)
+    
+    ToggleButton.Name = "Button"
+    ToggleButton.Parent = ToggleFrame
+    ToggleButton.Position = UDim2.new(0, 10, 0, 5)
+    ToggleButton.Size = UDim2.new(0, 12, 0, 12)
+    ToggleButton.BorderSizePixel = 1
+    ToggleButton.BorderColor3 = Color3.fromRGB(40, 40, 40)
+    
+    ToggleLabel.Parent = ToggleFrame
+    ToggleLabel.Position = UDim2.new(0, 30, 0, 0)
+    ToggleLabel.Size = UDim2.new(1, -30, 1, 0)
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Font = Enum.Font.Code
+    ToggleLabel.Text = name
+    ToggleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    ToggleLabel.TextSize = 12
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
--- ==========================================
--- 4. ВКЛАДКА: MISC (Движок и Функции)
--- ==========================================
-local MiscTab = Window:CreateTab({ Name = "Misc" })
-
--- BunnyHop (Автоматический распрыг при зажатом пробеле)
-local UserInputService = game:GetService("UserInputService")
-RunService.RenderStepped:Connect(function()
-    if Config.Misc.BunnyHop and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.Jump = true
-        end
+    local enabled = default
+    local function update()
+        if enabled then
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(150, 200, 60)
+        else
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        }
+        callback(enabled)
     end
+    
+    ToggleButton.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        update()
+    end)
+    update()
+end
+
+-- Создаем вкладки как в оригинале
+CreateTab("Rage", 1)
+CreateTab("Legit", 2)
+CreateTab("Visuals", 3)
+CreateTab("Misc", 4)
+
+-- Контейнер для элементов внутри правой панели
+local ElementsList = Instance.new("UIListLayout")
+ElementsList.Parent = ContentPanel
+ElementsList.Padding = UDim.new(0, 5)
+
+-- Пример добавления функций (Тестовые функции для Blox Strike)
+CreateToggle("Aimbot Enabled", ContentPanel, false, function(state)
+    print("Aimbot: ", state)
 end)
 
+CreateToggle("Wallhack (ESP)", ContentPanel, false, function(state)
+    print("ESP: ", state)
+end)
 
--- ==========================================
--- ТРИГГЕРЫ ДЛЯ ДЕМОНСТРАЦИИ (Включение функций через ручные тумблеры Config)
--- Раскомментируйте нужные строки ниже для жесткого теста:
-Config.Visuals.EspBoxes = true
-Config.Visuals.EspTracers = true
-Config.Rage.SilentAim = true
-Config.Misc.BunnyHop = true
--- ==========================================
-
-print("[Skeet.cc] Интерфейс и функции успешно инициализированы для Blox Strike.")
+CreateToggle("BunnyHop", ContentPanel, false, function(state)
+    print("Bhop: ", state)
+end)
