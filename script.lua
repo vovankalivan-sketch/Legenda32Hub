@@ -4,7 +4,7 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
--- Жесткая очистка старых сессий
+-- Полная очистка предыдущих сессий перед запуском
 local OldGui = game:GetService("CoreGui"):FindFirstChild("SkeetMenu_BS") or LocalPlayer.PlayerGui:FindFirstChild("SkeetMenu_BS")
 if OldGui then OldGui:Destroy() end
 
@@ -99,7 +99,7 @@ local Connections = {}
 local Pages = {}
 local TabButtons = {}
 
--- Модульный конструктор вкладок и страниц
+-- Исправленный конструктор вкладок и страниц (Ошибка Position устранена)
 local function CreatePage(name, order)
     local TabButton = Instance.new("TextButton")
     TabButton.Parent = LeftTabs
@@ -110,7 +110,7 @@ local function CreatePage(name, order)
     TabButton.TextColor3 = Color3.fromRGB(140, 140, 140)
     TabButton.TextSize = 11
     TabButton.LayoutOrder = order
-    TabButton.ZIndex = 12
+    TabButton.ZIndex = 15
 
     local Page = Instance.new("Frame")
     Page.Name = name .. "Page"
@@ -141,7 +141,7 @@ local function CreatePage(name, order)
     local ElementsLayout = Instance.new("UIListLayout")
     ElementsLayout.Parent = Groupbox
     ElementsLayout.Padding = UDim.new(0, 6)
-    ElementsLayout.Position = UDim2.new(0, 0, 0, 12)
+    -- Ошибка исправлена: свойство Position для UIListLayout больше не задается
 
     TabButton.MouseButton1Click:Connect(function()
         for _, p in pairs(Pages) do p.Visible = false end
@@ -170,7 +170,7 @@ local function AddToggle(name, parent, config_key)
     Box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     Box.BorderColor3 = Color3.fromRGB(50, 50, 50)
     Box.Text = ""
-    Box.ZIndex = 15
+    Box.ZIndex = 16
 
     local Label = Instance.new("TextLabel")
     Label.Parent = Frame
@@ -191,7 +191,7 @@ local function AddToggle(name, parent, config_key)
     end)
 end
 
--- Инициализация ВСЕХ 4 вкладок
+-- Инициализация всех 4 вкладок
 local RageSection = CreatePage("Rage", 1)
 local LegitSection = CreatePage("Legit", 2)
 local VisualsSection = CreatePage("Visuals", 3)
@@ -214,7 +214,7 @@ Pages["Rage"].Visible = true
 TabButtons[1].TextColor3 = Color3.fromRGB(163, 212, 47)
 
 -- =================================================================
--- ЛОГИКА ФУНКЦИЙ (БЕЗ НАГРУЗКИ НА ИНТЕРФЕЙС)
+-- ЛОГИКА ФУНКЦИЙ
 -- =================================================================
 
 local function IsEnemy(player)
@@ -253,7 +253,7 @@ table.insert(Connections, RunService.RenderStepped:Connect(function()
     end
 end))
 
--- Полностью изолированный поток BunnyHop (не вешает UI при зажатии пробела)
+-- Изолированный поток BunnyHop
 table.insert(Connections, RunService.PreRender:Connect(function()
     if Config.BunnyHop and UIS:IsKeyDown(Enum.KeyCode.Space) then
         local char = LocalPlayer.Character
@@ -282,13 +282,11 @@ end)
 setreadonly(mt, true)
 
 -- =================================================================
--- НАСТОЯЩИЙ WALLHACK (РАБОТАЕТ НА ВРАГОВ В VISUALS)
+-- НАСТОЯЩИЙ WALLHACK (ENEMY ONLY)
 -- =================================================================
 local function ApplyWallhack(player)
     local function SetupCharacterVisuals(char)
         if not char then return end
-        
-        -- Ждем полной загрузки команды игрока
         task.wait(0.5)
         if not IsEnemy(player) then return end
         
@@ -340,15 +338,13 @@ Players.PlayerAdded:Connect(function(p)
 end)
 
 -- =================================================================
--- НАДЕЖНЫЙ СКРИПТ ВЫГРУЗКИ (UNLOAD BUTTON)
+-- СКРИПТ ВЫГРУЗКИ (UNLOAD BUTTON)
 -- =================================================================
 UnloadButton.MouseButton1Click:Connect(function()
-    -- Отключение всех фоновых потоков и циклов рендера
     for _, connection in pairs(Connections) do
         if connection then connection:Disconnect() end
     end
     
-    -- Очистка всех объектов подсветки Wallhack на карте
     for _, p in pairs(Players:GetPlayers()) do
         if p.Character then
             for _, obj in pairs(p.Character:GetChildren()) do
@@ -357,12 +353,10 @@ UnloadButton.MouseButton1Click:Connect(function()
         end
     end
     
-    -- Восстановление исходной структуры метатаблицы Xeno
     setreadonly(mt, false)
     mt.__namecall = oldNamecall
     setreadonly(mt, true)
     
-    -- Уничтожение графического интерфейса
     SkeetMenu:Destroy()
 end)
 
