@@ -4,11 +4,11 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
--- Гарантированное удаление старых зависших копий UI из памяти
+-- Жесткая очистка старых сессий
 local OldGui = game:GetService("CoreGui"):FindFirstChild("SkeetMenu_BS") or LocalPlayer.PlayerGui:FindFirstChild("SkeetMenu_BS")
 if OldGui then OldGui:Destroy() end
 
--- Инициализация корневого контейнера
+-- Создание главного UI контейнера
 local SkeetMenu = Instance.new("ScreenGui")
 SkeetMenu.Name = "SkeetMenu_BS"
 SkeetMenu.DisplayOrder = 9999
@@ -85,7 +85,7 @@ PageContainer.Position = UDim2.new(0, 120, 0, 15)
 PageContainer.Size = UDim2.new(1, -130, 1, -25)
 PageContainer.ZIndex = 11
 
--- Таблица состояний
+-- Таблица состояний функций
 local Config = {
     Aimbot = false, SilentAim = false, NoRecoil = false, Triggerbot = false,
     EspBoxes = false, EspChams = false, BunnyHop = false
@@ -95,11 +95,10 @@ local Connections = {}
 local Pages = {}
 local TabButtons = {}
 
--- БЕЗОПАСНЫЙ КОНСТРУКТОР СТРАНИЦ НА ЧИСТЫХ КООРДИНАТАХ (БЕЗ UIListLayout)
+-- Универсальный математический конструктор вкладок (Без UIListLayout)
 local function CreatePage(name, order)
     local TabButton = Instance.new("TextButton")
     TabButton.Parent = LeftTabs
-    -- Расчет позиции кнопок вручную по индексу order (Шаг 30 пикселей)
     TabButton.Position = UDim2.new(0, 0, 0, (order - 1) * 32)
     TabButton.Size = UDim2.new(1, 0, 0, 30)
     TabButton.BackgroundTransparency = 1
@@ -135,7 +134,6 @@ local function CreatePage(name, order)
     GroupboxLabel.TextSize = 10
     GroupboxLabel.ZIndex = 14
 
-    -- Контейнер для тумблеров внутри страницы
     local ContentHolder = Instance.new("Frame")
     ContentHolder.Parent = Groupbox
     ContentHolder.BackgroundTransparency = 1
@@ -143,7 +141,6 @@ local function CreatePage(name, order)
     ContentHolder.Size = UDim2.new(1, 0, 1, -12)
     ContentHolder.ZIndex = 14
 
-    -- Переключение страниц кликом
     TabButton.MouseButton1Click:Connect(function()
         for _, p in pairs(Pages) do p.Visible = false end
         for _, btn in pairs(TabButtons) do btn.TextColor3 = Color3.fromRGB(140, 140, 140) end
@@ -156,7 +153,7 @@ local function CreatePage(name, order)
     return ContentHolder
 end
 
--- БЕЗОПАСНЫЙ КОНСТРУКТОР ТУМБЛЕРОВ С КОРРЕКТНЫМ СДВИГОМ (БЕЗ UIListLayout)
+-- Конструктор тумблеров по пиксельной сетке
 local toggleCounts = {}
 local function AddToggle(name, parent, config_key)
     if not toggleCounts[parent] then toggleCounts[parent] = 0 end
@@ -166,7 +163,6 @@ local function AddToggle(name, parent, config_key)
     local Frame = Instance.new("Frame")
     Frame.Parent = parent
     Frame.BackgroundTransparency = 1
-    -- Позиционирование каждого тумблера со сдвигом на 22 пикселя по вертикали
     Frame.Position = UDim2.new(0, 0, 0, index * 22)
     Frame.Size = UDim2.new(1, 0, 0, 20)
     Frame.ZIndex = 15
@@ -199,154 +195,177 @@ local function AddToggle(name, parent, config_key)
     end)
 end
 
--- Генерация вкладок по фиксированному порядку (1, 2, 3, 4)
+-- Инициализация структуры
 local RageSection = CreatePage("Rage", 1)
 local LegitSection = CreatePage("Legit", 2)
 local VisualsSection = CreatePage("Visuals", 3)
 local MiscSection = CreatePage("Misc", 4)
 
--- Добавление функций
 AddToggle("Enabled Aimbot", RageSection, "Aimbot")
-AddToggle("Silent Aim", RageSection, "SilentAim")
+AddToggle("Silent Aim (LMB)", RageSection, "SilentAim")
 AddToggle("Remove Recoil", RageSection, "NoRecoil")
-
 AddToggle("Triggerbot", LegitSection, "Triggerbot")
-
 AddToggle("Player Boxes (Enemy)", VisualsSection, "EspBoxes")
 AddToggle("Chams Wallhack (Enemy)", VisualsSection, "EspChams")
-
 AddToggle("BunnyHop (Space)", MiscSection, "BunnyHop")
 
--- Активация первой вкладки по умолчанию
 Pages["Rage"].Visible = true
-TabButtons[1].TextColor3 = Color3.fromRGB(163, 212, 47)
 
 -- =================================================================
--- ФУНКЦИОНАЛЬНАЯ ИГРОВАЯ ЛОГИКА
+-- ПОЛНОСТЬЮ ОБНОВЛЕННЫЙ ИСПРАВЛЕННЫЙ ФУНКЦИОНАЛ ПОД BLOX STRIKE
 -- =================================================================
 
 local function IsEnemy(player)
-    return player.Team ~= LocalPlayer.Team or player.TeamColor ~= LocalPlayer.TeamColor
+    if not player or player == LocalPlayer then return false end
+    -- Проверка по стандартной команде или по цвету тимы в Blox Strike
+    if player.Team ~= LocalPlayer.Team then return true end
+    if player.TeamColor ~= LocalPlayer.TeamColor then return true end
+    return false
 end
 
-local function GetClosestPlayer()
-    local closest = nil
-    local maxDist = math.huge
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and IsEnemy(p) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
-            if onScreen then
-                local mousePos = UIS:GetMouseLocation()
-                local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                if dist < maxDist then closest = p.Character; maxDist = dist end
+-- Улучшенный поиск ближайшей цели по хитбоксам Blox Strike
+local function GetClosestTarget()
+    local closestCharacter = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if IsEnemy(player) and player.Character then
+            -- Проверяем любые доступные элементы головы или торса в Blox Strike
+            local bodyPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChildOfClass("Part")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            
+            if bodyPart and (not humanoid or humanoid.Health > 0) then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(bodyPart.Position)
+                if onScreen then
+                    local mousePos = UIS:GetMouseLocation()
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestCharacter = bodyPart
+                    end
+                end
             end
         end
     end
-    return closest
+    return closestCharacter
 end
 
+-- Общий цикл для Aim, Silent, NoRecoil и Triggerbot
 table.insert(Connections, RunService.RenderStepped:Connect(function()
-    local target = GetClosestPlayer()
-    if target and target:FindFirstChild("Head") and Config.Aimbot then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position)
+    local targetPart = GetClosestTarget()
+    
+    if targetPart then
+        -- 1. Легитный/Жесткий Аимбот
+        if Config.Aimbot and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+        end
+        
+        -- 2. Сайлент Аим через прямую подмену направления камеры в момент кадра выстрела
+        if Config.SilentAim and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+        end
     end
     
+    -- 3. Прямой No Recoil (Сканирование ReplicatedStorage и локальных конфигов оружия)
     if Config.NoRecoil then
         pcall(function()
-            for _, v in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-                if v:IsA("NumberValue") and (v.Name == "Recoil" or v.Name == "Spread") then v.Value = 0 end
+            for _, item in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+                if item:IsA("NumberValue") and (item.Name:lower():find("recoil") or item.Name:lower():find("spread")) then
+                    item.Value = 0
+                end
+            end
+            if LocalPlayer.Character then
+                for _, item in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if item:IsA("NumberValue") and (item.Name:lower():find("recoil") or item.Name:lower():find("spread")) then
+                        item.Value = 0
+                    end
+                end
             end
         end)
     end
 end))
 
+-- Изолированный рабочий поток BunnyHop
 table.insert(Connections, RunService.PreRender:Connect(function()
     if Config.BunnyHop and UIS:IsKeyDown(Enum.KeyCode.Space) then
         local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") and char.Humanoid.FloorMaterial ~= Enum.Material.Air then
-            char.Humanoid.Jump = true
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.FloorMaterial ~= Enum.Material.Air then
+            hum.Jump = true
         end
     end
 end))
 
--- Метатабличный хук на Silent Aim
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-mt.__namecall = newcstackclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    if Config.SilentAim and (method == "FireServer" or method == "InvokeServer") and self.Name == "Shoot" then
-        local target = GetClosestPlayer()
-        if target and target:FindFirstChild("Head") then
-            args = target.Head.Position
-            return oldNamecall(self, unpack(args))
-        end
-    end
-    return oldNamecall(self, ...)
-end)
-setreadonly(mt, true)
+-- =================================================================
+-- КОРРЕКТНЫЙ WALLHACK НА АЛЬТЕРНАТИВНЫХ ДВИЖКОВЫХ ОБЪЕКТАХ
+-- =================================================================
+local function ApplyVisuals(player)
+    if player == LocalPlayer then return end
 
--- Отрисовка Wallhack (Только враги)
-local function ApplyWallhack(player)
-    local function SetupCharacterVisuals(char)
+    local function CoreVisualSetup(char)
         if not char then return end
-        task.wait(0.5)
+        -- Небольшая задержка, чтобы Blox Strike успел распределить команды
+        task.wait(1)
         if not IsEnemy(player) then return end
-        
-        for _, old in pairs(char:GetChildren()) do
-            if old.Name == "Skeet_Chams" or old.Name == "Skeet_Box" then old:Destroy() end
+
+        -- Зачистка старой разметки
+        for _, child in pairs(char:GetChildren()) do
+            if child.Name == "Skeet_Chams" or child.Name == "Skeet_Box" then child:Destroy() end
         end
 
-        local Highlight = Instance.new("Highlight")
-        Highlight.Name = "Skeet_Chams"
-        Highlight.Parent = char
-        Highlight.FillColor = Color3.fromRGB(240, 50, 50)
-        Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-        Highlight.FillTransparency = 0.4
-        Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        Highlight.Enabled = false
+        -- Настоящие Chams через Highlight (Работает сквозь стены на Xeno)
+        local Chams = Instance.new("Highlight")
+        Chams.Name = "Skeet_Chams"
+        Chams.FillColor = Color3.fromRGB(240, 40, 40) -- Красный для врагов
+        Chams.OutlineColor = Color3.fromRGB(255, 255, 255)
+        Chams.FillTransparency = 0.3
+        Chams.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        Chams.Enabled = false
+        Chams.Parent = char
 
+        -- Коробки через BoxHandleAdornment (Альтернатива 2D рамкам)
         local Box = Instance.new("BoxHandleAdornment")
         Box.Name = "Skeet_Box"
-        Box.Parent = char
         Box.AlwaysOnTop = true
-        Box.ZIndex = 5
-        Box.Adornee = char
-        Box.Color3 = Color3.fromRGB(240, 50, 50)
-        Box.Size = Vector3.new(4, 5.5, 1)
+        Box.ZIndex = 6
+        Box.Color3 = Color3.fromRGB(240, 40, 40)
+        Box.Size = Vector3.new(4.5, 6, 4.5)
         Box.Transparency = 0.6
         Box.Visible = false
+        Box.Adornee = char
+        Box.Parent = char
 
-        local conn
-        conn = RunService.RenderStepped:Connect(function()
-            if not char:IsDescendantOf(workspace) or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
-                conn:Disconnect()
+        -- Синхронизация видимости с тумблерами
+        local loopConn
+        loopConn = RunService.RenderStepped:Connect(function()
+            if not char:IsDescendantOf(workspace) then
+                loopConn:Disconnect()
                 return
             end
-            Highlight.Enabled = Config.EspChams
+            Chams.Enabled = Config.EspChams
             Box.Visible = Config.EspBoxes
         end)
-        table.insert(Connections, conn)
+        table.insert(Connections, loopConn)
     end
 
-    if player.Character then SetupCharacterVisuals(player.Character) end
-    player.CharacterAdded:Connect(SetupCharacterVisuals)
+    if player.Character then task.spawn(CoreVisualSetup, player.Character) end
+    player.CharacterAdded:Connect(function(char) task.spawn(CoreVisualSetup, char) end)
 end
 
-for _, p in pairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer then ApplyWallhack(p) end
-end
-Players.PlayerAdded:Connect(function(p)
-    if p ~= LocalPlayer then p.CharacterAdded:Connect(function() ApplyWallhack(p) end) end
-end)
+-- Внедрение во всех текущих и будущих игроков
+for _, p in pairs(Players:GetPlayers()) do ApplyVisuals(p) end
+Players.PlayerAdded:Connect(ApplyVisuals)
 
--- Кнопка UNLOAD (Полное удаление из системы)
+-- =================================================================
+-- КНОПКА ВЫГРУЗКИ (UNLOAD BUTTON)
+-- =================================================================
 UnloadButton.MouseButton1Click:Connect(function()
+    -- Полное отключение всех игровых циклов рендера
     for _, connection in pairs(Connections) do
         if connection then connection:Disconnect() end
     end
     
+    -- Очистка объектов Wallhack со всех персонажей на сервере
     for _, p in pairs(Players:GetPlayers()) do
         if p.Character then
             for _, obj in pairs(p.Character:GetChildren()) do
@@ -355,10 +374,7 @@ UnloadButton.MouseButton1Click:Connect(function()
         end
     end
     
-    setreadonly(mt, false)
-    mt.__namecall = oldNamecall
-    setreadonly(mt, true)
-    
+    -- Полное уничтожение графического меню из CoreGui/PlayerGui
     SkeetMenu:Destroy()
 end)
 
