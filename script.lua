@@ -4,9 +4,9 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
--- Полная очистка предыдущих интерфейсов
-local TargetGui = game:GetService("CoreGui"):FindFirstChild("SkeetMenu_BS") or LocalPlayer.PlayerGui:FindFirstChild("SkeetMenu_BS")
-if TargetGui then TargetGui:Destroy() end
+-- Полная очистка предыдущих сессий перед запуском
+local OldGui = game:GetService("CoreGui"):FindFirstChild("SkeetMenu_BS") or LocalPlayer.PlayerGui:FindFirstChild("SkeetMenu_BS")
+if OldGui then OldGui:Destroy() end
 
 -- Создание UI контейнера
 local SkeetMenu = Instance.new("ScreenGui")
@@ -15,9 +15,7 @@ SkeetMenu.DisplayOrder = 9999
 SkeetMenu.ResetOnSpawn = false
 SkeetMenu.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
--- =================================================================
--- КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ МЕНЮ (ВЗАМЕН КЛАВИШИ DELETE)
--- =================================================================
+-- Кнопка открытия/закрытия
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "ToggleButton"
 MenuButton.Parent = SkeetMenu
@@ -42,61 +40,110 @@ MainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
 MainFrame.Size = UDim2.new(0, 520, 0, 360)
 MainFrame.Visible = true
 
--- Логика переключения кнопкой
 MenuButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Зеленая неоновая линия Skeet
+-- Верхняя неоновая линия
 local Line = Instance.new("Frame")
 Line.Parent = MainFrame
 Line.BackgroundColor3 = Color3.fromRGB(163, 212, 47)
 Line.BorderSizePixel = 0
 Line.Size = UDim2.new(1, 0, 0, 2)
 
--- Конфигурация функций
+-- Панель вкладок (Слева)
+local LeftTabs = Instance.new("Frame")
+LeftTabs.Parent = MainFrame
+LeftTabs.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+LeftTabs.BorderColor3 = Color3.fromRGB(25, 25, 25)
+LeftTabs.Position = UDim2.new(0, 10, 0, 15)
+LeftTabs.Size = UDim2.new(0, 100, 1, -55)
+
+local TabsLayout = Instance.new("UIListLayout")
+TabsLayout.Parent = LeftTabs
+
+-- Кнопка выгрузки скрипта (UNLOAD)
+local UnloadButton = Instance.new("TextButton")
+UnloadButton.Parent = MainFrame
+UnloadButton.Position = UDim2.new(0, 10, 1, -32)
+UnloadButton.Size = UDim2.new(0, 100, 0, 22)
+UnloadButton.BackgroundColor3 = Color3.fromRGB(30, 10, 10)
+UnloadButton.BorderColor3 = Color3.fromRGB(50, 20, 20)
+UnloadButton.Font = Enum.Font.Code
+UnloadButton.Text = "UNLOAD"
+UnloadButton.TextColor3 = Color3.fromRGB(240, 70, 70)
+UnloadButton.TextSize = 11
+
+-- Контейнер для страниц (Справа)
+local PageContainer = Instance.new("Frame")
+PageContainer.Parent = MainFrame
+PageContainer.BackgroundTransparency = 1
+PageContainer.Position = UDim2.new(0, 120, 0, 15)
+PageContainer.Size = UDim2.new(1, -130, 1, -25)
+
+-- Таблица глобальной конфигурации
 local Config = {
-    Aimbot = false,
-    SilentAim = false,
-    NoRecoil = false,
-    EspBoxes = false,
-    EspChams = false
+    Aimbot = false, SilentAim = false, NoRecoil = false,
+    EspBoxes = false, EspChams = false, BunnyHop = false
 }
 
--- =================================================================
--- СОЗДАНИЕ ОРИГИНАЛЬНЫХ РАЗДЕЛОВ (GROUPBOXES)
--- =================================================================
-local function CreateGroupbox(title, position, size)
-    local Box = Instance.new("Frame")
-    Box.Parent = MainFrame
-    Box.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-    Box.BorderColor3 = Color3.fromRGB(30, 30, 30)
-    Box.Position = position
-    Box.Size = size
+local Connections = {}
+local Pages = {}
 
-    local Label = Instance.new("TextLabel")
-    Label.Parent = Box
-    Label.Position = UDim2.new(0, 12, 0, -6)
-    Label.Size = UDim2.new(0, 60, 0, 10)
-    Label.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-    Label.Font = Enum.Font.Code
-    Label.Text = " " .. title .. " "
-    Label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Label.TextSize = 10
+-- Функция создания страниц и вкладок
+local function CreatePage(name)
+    local TabButton = Instance.new("TextButton")
+    TabButton.Parent = LeftTabs
+    TabButton.Size = UDim2.new(1, 0, 0, 30)
+    TabButton.BackgroundTransparency = 1
+    TabButton.Font = Enum.Font.Code
+    TabButton.Text = name:upper()
+    TabButton.TextColor3 = Color3.fromRGB(140, 140, 140)
+    TabButton.TextSize = 11
 
-    local List = Instance.new("UIListLayout")
-    List.Parent = Box
-    List.Padding = UDim.new(0, 6)
-    List.Position = UDim2.new(0, 0, 0, 12)
-    
-    return Box
+    local Page = Instance.new("Frame")
+    Page.Name = name .. "Page"
+    Page.Parent = PageContainer
+    Page.Size = UDim2.new(1, 0, 1, 0)
+    Page.BackgroundTransparency = 1
+    Page.Visible = false
+
+    local Groupbox = Instance.new("Frame")
+    Groupbox.Parent = Page
+    Groupbox.BackgroundColor3 = Color3.fromRGB(11, 11, 11)
+    Groupbox.BorderColor3 = Color3.fromRGB(30, 30, 30)
+    Groupbox.Position = UDim2.new(0, 0, 0, 0)
+    Groupbox.Size = UDim2.new(1, 0, 1, 0)
+
+    local GroupboxLabel = Instance.new("TextLabel")
+    GroupboxLabel.Parent = Groupbox
+    GroupboxLabel.Position = UDim2.new(0, 12, 0, -6)
+    GroupboxLabel.Size = UDim2.new(0, 65, 0, 12)
+    GroupboxLabel.BackgroundColor3 = Color3.fromRGB(11, 11, 11)
+    GroupboxLabel.Font = Enum.Font.Code
+    GroupboxLabel.Text = " " .. name .. " "
+    GroupboxLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    GroupboxLabel.TextSize = 10
+
+    local ElementsLayout = Instance.new("UIListLayout")
+    ElementsLayout.Parent = Groupbox
+    ElementsLayout.Padding = UDim.new(0, 6)
+    ElementsLayout.Position = UDim2.new(0, 0, 0, 12)
+
+    TabButton.MouseButton1Click:Connect(function()
+        for _, p in pairs(Pages) do p.Visible = false end
+        for _, btn in pairs(LeftTabs:GetChildren()) do 
+            if btn:IsA("TextButton") then btn.TextColor3 = Color3.fromRGB(140, 140, 140) end 
+        end
+        Page.Visible = true
+        TabButton.TextColor3 = Color3.fromRGB(163, 212, 47)
+    end)
+
+    Pages[name] = Page
+    return Groupbox
 end
 
--- Распределяем разделы по позициям
-local RageBox = CreateGroupbox("Ragebot", UDim2.new(0, 15, 0, 25), UDim2.new(0.46, 0, 0.9, 0))
-local VisualsBox = CreateGroupbox("Visuals", UDim2.new(0.52, 0, 0.25, 0), UDim2.new(0.46, 0, 0.9, 0))
-
--- Функция чекбокса в Skeet-стиле
+-- Создание чекбоксов
 local function AddToggle(name, parent, config_key)
     local Frame = Instance.new("Frame")
     Frame.Parent = parent
@@ -129,39 +176,52 @@ local function AddToggle(name, parent, config_key)
     end)
 end
 
--- Перенос функций СТРОГО ПО ИХ РАЗДЕЛАМ
-AddToggle("Enabled Aimbot", RageBox, "Aimbot")
-AddToggle("Silent Aim", RageBox, "SilentAim")
-AddToggle("Remove Recoil", RageBox, "NoRecoil")
+-- Инициализация вкладок
+local RageSection = CreatePage("Rage")
+local LegitSection = CreatePage("Legit")
+local VisualsSection = CreatePage("Visuals")
+local MiscSection = CreatePage("Misc")
 
-AddToggle("Player Boxes", VisualsBox, "EspBoxes")
-AddToggle("Chams (Wallhack)", VisualsBox, "EspChams")
+-- Сортировка функций по вкладкам
+AddToggle("Enabled Aimbot", RageSection, "Aimbot")
+AddToggle("Silent Aim", RageSection, "SilentAim")
+AddToggle("Remove Recoil", RageSection, "NoRecoil")
+
+AddToggle("Player Boxes (Enemy)", VisualsSection, "EspBoxes")
+AddToggle("Chams Wallhack (Enemy)", VisualsSection, "EspChams")
+
+AddToggle("BunnyHop (Space)", MiscSection, "BunnyHop")
+
+-- Дефолтный выбор вкладки при старте
+Pages["Rage"].Visible = true
+LeftTabs:FindFirstChildOfClass("TextButton").TextColor3 = Color3.fromRGB(163, 212, 47)
 
 -- =================================================================
--- РАБОЧИЙ ФУНКЦИОНАЛ ДЛЯ BLOX STRIKE И ВАЛХАК (ESP)
+-- РАБОЧАЯ ЛОГИКА ФУНКЦИЙ (AIM / NO RECOIL / ENEMY CHECK)
 -- =================================================================
+
+local function IsEnemy(player)
+    return player.Team ~= LocalPlayer.Team or player.TeamColor ~= LocalPlayer.TeamColor
+end
 
 local function GetClosestPlayer()
     local closest = nil
     local maxDist = math.huge
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+        if p ~= LocalPlayer and IsEnemy(p) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
             local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
             if onScreen then
                 local mousePos = UIS:GetMouseLocation()
                 local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                if dist < maxDist then
-                    closest = p.Character
-                    maxDist = dist
-                end
+                if dist < maxDist then closest = p.Character; maxDist = dist end
             end
         end
     end
     return closest
 end
 
--- Логика Аимбота, Сайлент Аима и No Recoil
-RunService.RenderStepped:Connect(function()
+-- Главный игровой цикл
+table.insert(Connections, RunService.RenderStepped:Connect(function()
     local target = GetClosestPlayer()
     if target and target:FindFirstChild("Head") and Config.Aimbot then
         Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Head.Position)
@@ -170,15 +230,21 @@ RunService.RenderStepped:Connect(function()
     if Config.NoRecoil then
         pcall(function()
             for _, v in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-                if v:IsA("NumberValue") and (v.Name == "Recoil" or v.Name == "Spread") then
-                    v.Value = 0
-                end
+                if v:IsA("NumberValue") and (v.Name == "Recoil" or v.Name == "Spread") then v.Value = 0 end
             end
         end)
     end
-end)
 
--- Сайлент Аим хук через метатаблицу Xeno
+    -- ЛОГИКА РАБОЧЕГО BUNNYHOP (Распрыжка)
+    if Config.BunnyHop and UIS:IsKeyDown(Enum.KeyCode.Space) then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") and char.Humanoid.FloorMaterial ~= Enum.Material.Air then
+            char.Humanoid.Jump = true
+        end
+    end
+end))
+
+-- Сайлент Аим хук метатаблицы Xeno
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
@@ -197,60 +263,83 @@ end)
 setreadonly(mt, true)
 
 -- =================================================================
--- НАСТОЯЩИЙ РАБОЧИЙ WALLHACK (ESP И CHAMS) ДЛЯ BLOX STRIKE
+-- НАСТОЯЩИЙ WALLHACK (ПОДСВЕЧИВАЕТ ТОЛЬКО ВРАГОВ КРАСНЫМ)
 -- =================================================================
 local function ApplyWallhack(player)
     local function SetupCharacterVisuals(char)
         if not char then return end
+        if not IsEnemy(player) then return end -- Пропускаем союзников
         
-        -- Удаляем старые следы валхака, если они есть
         for _, old in pairs(char:GetChildren()) do
             if old.Name == "Skeet_Chams" or old.Name == "Skeet_Box" then old:Destroy() end
         end
 
-        -- 1. Создание Chams (Подсветка тела сквозь стены)
         local Highlight = Instance.new("Highlight")
         Highlight.Name = "Skeet_Chams"
         Highlight.Parent = char
-        Highlight.FillColor = Color3.fromRGB(163, 212, 47) -- Зеленый Skeet
+        Highlight.FillColor = Color3.fromRGB(240, 50, 50) -- Красный цвет для врагов
         Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
         Highlight.FillTransparency = 0.4
-        Highlight.OutlineTransparency = 0.1
         Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 
-        -- 2. Создание Box ESP (Отображение рамок)
         local Box = Instance.new("BoxHandleAdornment")
         Box.Name = "Skeet_Box"
         Box.Parent = char
         Box.AlwaysOnTop = true
         Box.ZIndex = 5
         Box.Adornee = char
-        Box.Color3 = Color3.fromRGB(163, 212, 47)
+        Box.Color3 = Color3.fromRGB(240, 50, 50)
         Box.Size = Vector3.new(4, 5.5, 1)
         Box.Transparency = 0.6
 
-        -- Динамическое обновление видимости валхака
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
+        local conn
+        conn = RunService.RenderStepped:Connect(function()
             if not char:IsDescendantOf(workspace) or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
-                connection:Disconnect()
+                conn:Disconnect()
                 return
             end
             Highlight.Enabled = Config.EspChams
             Box.Visible = Config.EspBoxes
         end)
+        table.insert(Connections, conn)
     end
 
     if player.Character then SetupCharacterVisuals(player.Character) end
     player.CharacterAdded:Connect(SetupCharacterVisuals)
 end
 
--- Внедрение Валхака во всех игроков матча Blox Strike
 for _, p in pairs(Players:GetPlayers()) do
     if p ~= LocalPlayer then ApplyWallhack(p) end
 end
 Players.PlayerAdded:Connect(function(p)
     if p ~= LocalPlayer then p.CharacterAdded:Connect(function() ApplyWallhack(p) end) end
+end)
+
+-- =================================================================
+-- СТАТИЧЕСКАЯ ВЫГРУЗКА И ОЧИСТКА ПАМЯТИ (UNLOAD)
+-- =================================================================
+UnloadButton.MouseButton1Click:Connect(function()
+    -- Отключаем циклы отрисовки и событий
+    for _, connection in pairs(Connections) do
+        if connection then connection:Disconnect() end
+    end
+    
+    -- Очищаем все Highlight и Боксы с игроков на карте
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            for _, obj in pairs(p.Character:GetChildren()) do
+                if obj.Name == "Skeet_Chams" or obj.Name == "Skeet_Box" then obj:Destroy() end
+            end
+        end
+    end
+    
+    -- Возвращаем метатаблицу Xeno в исходное состояние
+    setreadonly(mt, false)
+    mt.__namecall = oldNamecall
+    setreadonly(mt, true)
+    
+    -- Полностью уничтожаем меню
+    SkeetMenu:Destroy()
 end)
 
 -- Плавный Drag для меню мышкой
