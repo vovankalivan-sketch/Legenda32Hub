@@ -4,18 +4,18 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
--- Полное уничтожение старых интерфейсов перед запуском
+-- Гарантированное удаление старых зависших копий UI из памяти
 local OldGui = game:GetService("CoreGui"):FindFirstChild("SkeetMenu_BS") or LocalPlayer.PlayerGui:FindFirstChild("SkeetMenu_BS")
 if OldGui then OldGui:Destroy() end
 
--- Создание главного UI контейнера
+-- Инициализация корневого контейнера
 local SkeetMenu = Instance.new("ScreenGui")
 SkeetMenu.Name = "SkeetMenu_BS"
 SkeetMenu.DisplayOrder = 9999
 SkeetMenu.ResetOnSpawn = false
 SkeetMenu.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
--- Кнопка открытия/закрытия меню
+-- Кнопка открытия/закрытия меню в левом верхнем углу
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "ToggleButton"
 MenuButton.Parent = SkeetMenu
@@ -30,7 +30,7 @@ MenuButton.TextColor3 = Color3.fromRGB(163, 212, 47)
 MenuButton.TextSize = 11
 MenuButton.ZIndex = 100
 
--- Главное окно Skeet
+-- Главное окно Skeet.cc
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = SkeetMenu
@@ -47,7 +47,7 @@ MenuButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Зеленая неоновая полоса Skeet
+-- Оригинальная неоновая полоса Skeet сверху
 local Line = Instance.new("Frame")
 Line.Parent = MainFrame
 Line.BackgroundColor3 = Color3.fromRGB(163, 212, 47)
@@ -55,7 +55,7 @@ Line.BorderSizePixel = 0
 Line.Size = UDim2.new(1, 0, 0, 2)
 Line.ZIndex = 11
 
--- Левая панель для кнопок вкладок
+-- Левая панель для вкладок
 local LeftTabs = Instance.new("Frame")
 LeftTabs.Parent = MainFrame
 LeftTabs.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
@@ -64,11 +64,7 @@ LeftTabs.Position = UDim2.new(0, 10, 0, 15)
 LeftTabs.Size = UDim2.new(0, 100, 1, -55)
 LeftTabs.ZIndex = 11
 
-local TabsLayout = Instance.new("UIListLayout")
-TabsLayout.Parent = LeftTabs
-TabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- Кнопка полного удаления (UNLOAD)
+-- Кнопка полной выгрузки (UNLOAD)
 local UnloadButton = Instance.new("TextButton")
 UnloadButton.Parent = MainFrame
 UnloadButton.Position = UDim2.new(0, 10, 1, -32)
@@ -81,7 +77,7 @@ UnloadButton.TextColor3 = Color3.fromRGB(240, 70, 70)
 UnloadButton.TextSize = 11
 UnloadButton.ZIndex = 99
 
--- Контейнер для отображения страниц контента
+-- Контейнер для страниц
 local PageContainer = Instance.new("Frame")
 PageContainer.Parent = MainFrame
 PageContainer.BackgroundTransparency = 1
@@ -89,7 +85,7 @@ PageContainer.Position = UDim2.new(0, 120, 0, 15)
 PageContainer.Size = UDim2.new(1, -130, 1, -25)
 PageContainer.ZIndex = 11
 
--- Глобальная конфигурация функций
+-- Таблица состояний
 local Config = {
     Aimbot = false, SilentAim = false, NoRecoil = false, Triggerbot = false,
     EspBoxes = false, EspChams = false, BunnyHop = false
@@ -99,17 +95,18 @@ local Connections = {}
 local Pages = {}
 local TabButtons = {}
 
--- ПОЛНОСТЬЮ ПЕРЕПИСАННЫЙ КОНСТРУКТОР СТРАНИЦ БЕЗ ИСПОЛЬЗОВАНИЯ UIListLayout ВНУТРИ
+-- БЕЗОПАСНЫЙ КОНСТРУКТОР СТРАНИЦ НА ЧИСТЫХ КООРДИНАТАХ (БЕЗ UIListLayout)
 local function CreatePage(name, order)
     local TabButton = Instance.new("TextButton")
     TabButton.Parent = LeftTabs
+    -- Расчет позиции кнопок вручную по индексу order (Шаг 30 пикселей)
+    TabButton.Position = UDim2.new(0, 0, 0, (order - 1) * 32)
     TabButton.Size = UDim2.new(1, 0, 0, 30)
     TabButton.BackgroundTransparency = 1
     TabButton.Font = Enum.Font.Code
     TabButton.Text = name:upper()
     TabButton.TextColor3 = Color3.fromRGB(140, 140, 140)
     TabButton.TextSize = 11
-    TabButton.LayoutOrder = order
     TabButton.ZIndex = 15
 
     local Page = Instance.new("Frame")
@@ -138,7 +135,7 @@ local function CreatePage(name, order)
     GroupboxLabel.TextSize = 10
     GroupboxLabel.ZIndex = 14
 
-    -- Кастомное позиционирование элементов списком через Frame вместо UIListLayout
+    -- Контейнер для тумблеров внутри страницы
     local ContentHolder = Instance.new("Frame")
     ContentHolder.Parent = Groupbox
     ContentHolder.BackgroundTransparency = 1
@@ -146,11 +143,7 @@ local function CreatePage(name, order)
     ContentHolder.Size = UDim2.new(1, 0, 1, -12)
     ContentHolder.ZIndex = 14
 
-    local ElementLayoutizer = Instance.new("UIListLayout")
-    ElementLayoutizer.Parent = ContentHolder
-    ElementLayoutizer.Padding = UDim.new(0, 6)
-    ElementLayoutizer.SortOrder = Enum.SortOrder.LayoutOrder
-
+    -- Переключение страниц кликом
     TabButton.MouseButton1Click:Connect(function()
         for _, p in pairs(Pages) do p.Visible = false end
         for _, btn in pairs(TabButtons) do btn.TextColor3 = Color3.fromRGB(140, 140, 140) end
@@ -163,11 +156,18 @@ local function CreatePage(name, order)
     return ContentHolder
 end
 
--- Конструктор чекбоксов
+-- БЕЗОПАСНЫЙ КОНСТРУКТОР ТУМБЛЕРОВ С КОРРЕКТНЫМ СДВИГОМ (БЕЗ UIListLayout)
+local toggleCounts = {}
 local function AddToggle(name, parent, config_key)
+    if not toggleCounts[parent] then toggleCounts[parent] = 0 end
+    local index = toggleCounts[parent]
+    toggleCounts[parent] = toggleCounts[parent] + 1
+
     local Frame = Instance.new("Frame")
     Frame.Parent = parent
     Frame.BackgroundTransparency = 1
+    -- Позиционирование каждого тумблера со сдвигом на 22 пикселя по вертикали
+    Frame.Position = UDim2.new(0, 0, 0, index * 22)
     Frame.Size = UDim2.new(1, 0, 0, 20)
     Frame.ZIndex = 15
 
@@ -199,13 +199,13 @@ local function AddToggle(name, parent, config_key)
     end)
 end
 
--- Инициализация всех вкладок
+-- Генерация вкладок по фиксированному порядку (1, 2, 3, 4)
 local RageSection = CreatePage("Rage", 1)
 local LegitSection = CreatePage("Legit", 2)
 local VisualsSection = CreatePage("Visuals", 3)
 local MiscSection = CreatePage("Misc", 4)
 
--- Наполнение функций
+-- Добавление функций
 AddToggle("Enabled Aimbot", RageSection, "Aimbot")
 AddToggle("Silent Aim", RageSection, "SilentAim")
 AddToggle("Remove Recoil", RageSection, "NoRecoil")
@@ -217,12 +217,12 @@ AddToggle("Chams Wallhack (Enemy)", VisualsSection, "EspChams")
 
 AddToggle("BunnyHop (Space)", MiscSection, "BunnyHop")
 
--- Установка дефолтной страницы
+-- Активация первой вкладки по умолчанию
 Pages["Rage"].Visible = true
 TabButtons[1].TextColor3 = Color3.fromRGB(163, 212, 47)
 
 -- =================================================================
--- ФУНКЦИОНАЛЬНАЯ ЛОГИКА СНАЙПИНГА И ПЕРЕМЕЩЕНИЙ
+-- ФУНКЦИОНАЛЬНАЯ ИГРОВАЯ ЛОГИКА
 -- =================================================================
 
 local function IsEnemy(player)
@@ -269,6 +269,7 @@ table.insert(Connections, RunService.PreRender:Connect(function()
     end
 end))
 
+-- Метатабличный хук на Silent Aim
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
@@ -286,9 +287,7 @@ mt.__namecall = newcstackclosure(function(self, ...)
 end)
 setreadonly(mt, true)
 
--- =================================================================
--- НАСТОЯЩИЙ WALLHACK (ENEMY ONLY)
--- =================================================================
+-- Отрисовка Wallhack (Только враги)
 local function ApplyWallhack(player)
     local function SetupCharacterVisuals(char)
         if not char then return end
@@ -342,9 +341,7 @@ Players.PlayerAdded:Connect(function(p)
     if p ~= LocalPlayer then p.CharacterAdded:Connect(function() ApplyWallhack(p) end) end
 end)
 
--- =================================================================
--- СКРИПТ ВЫГРУЗКИ (UNLOAD BUTTON)
--- =================================================================
+-- Кнопка UNLOAD (Полное удаление из системы)
 UnloadButton.MouseButton1Click:Connect(function()
     for _, connection in pairs(Connections) do
         if connection then connection:Disconnect() end
@@ -365,7 +362,7 @@ UnloadButton.MouseButton1Click:Connect(function()
     SkeetMenu:Destroy()
 end)
 
--- Плавное и стабильное перемещение меню мышкой (Drag & Drop)
+-- Скрипт перетаскивания (Drag & Drop)
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
