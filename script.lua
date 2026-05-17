@@ -1,15 +1,13 @@
--- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Адаптировано под Delta Client
+-- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (Бесконечный полет)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- Переменные для контроля выгрузки
 local scriptRunning = true
 _G.ScriptEnabled = false
 _G.ClimbSpeed = 50
-_G.MaxHeight = 70000
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 -- Корректное удаление старых копий в Delta Client
@@ -23,7 +21,7 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 999 -- Поверх меню Delta Client
 
--- Кнопка Скрыть/Показать (Удобно для сенсорных экранов)
+-- Кнопка Скрыть/Показать
 local OpenCloseBtn = Instance.new("TextButton")
 OpenCloseBtn.Size = UDim2.new(0, 140, 0, 35)
 OpenCloseBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -34,7 +32,7 @@ OpenCloseBtn.Font = Enum.Font.SourceSansBold
 OpenCloseBtn.TextSize = 14
 OpenCloseBtn.Parent = ScreenGui
 
--- Главный фрейм меню
+-- Главный фрейм меню (размер уменьшен, так как нет строки лимита высоты)
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 240, 0, 340)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
@@ -173,18 +171,7 @@ local function unloadScript()
 end
 UnloadBtn.MouseButton1Click:Connect(unloadScript)
 
--- Функция безопасного серверного реконнекта
-local function reconnect()
-    if not scriptRunning then return end
-    StatusLabel.Text = "Реконнект..."
-    if #Players:GetPlayers() <= 1 then
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-    else
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-    end
-end
-
--- Поиск динамических объектов лестницы в PS99
+-- Поиск динамических объектов лестницы в PS99 (Стабильный радиус)
 local function findStairs()
     for _, item in ipairs(workspace:GetChildren()) do
         if item:IsA("Model") then
@@ -193,7 +180,7 @@ local function findStairs()
                 local character = LocalPlayer.Character
                 if character and character:FindFirstChild("HumanoidRootPart") then
                     local dist = (item:GetPivot().Position - character.HumanoidRootPart.Position).Magnitude
-                    if dist < 250 then 
+                    if dist < 200 then 
                         return item
                     end
                 end
@@ -218,12 +205,6 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
     local currentHeight = math.floor(hrp.Position.Y)
     HeightLabel.Text = "Высота Y: " .. tostring(currentHeight)
 
-    -- Перезаход при достижении лимита высоты
-    if currentHeight >= _G.MaxHeight then
-        reconnect()
-        return
-    end
-
     if _G.ScriptEnabled then
         if character:FindFirstChild("Humanoid") then
             character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
@@ -242,7 +223,7 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. foundObject.Name
         else
-            -- Полет строго вверх
+            -- Стабильный бесконечный полет вверх без лимитов и перезаходов
             StatusLabel.Text = "Статус: Полет вверх..."
             hrp.CFrame = hrp.CFrame * CFrame.new(0, _G.ClimbSpeed * deltaTime, 0)
             hrp.Velocity = Vector3.new(0, 0, 0)
