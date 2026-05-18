@@ -1,17 +1,18 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (Perfect Stable Edition)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (Perfect Stable + Copy Webhook)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Локальный контроль (Строго ручное управление, никакого автостарта!)
+-- Локальный контроль (Ручной запуск!)
 local scriptRunning = true
 _G.ScriptEnabled = false 
 _G.ClimbSpeed = 50
 _G.MaxHeight = 200000
 _G.FpsBoostEnabled = false
 
--- Глобальная статистика
+-- Статистика и вебхук в глобальной памяти
 if not _G.TotalRejoins then _G.TotalRejoins = 0 end
 if not _G.TotalDistance then _G.TotalDistance = 0 end
 if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
+-- Твой вебхук вшит железно
 _G.DiscordWebhookURL = "https://discord.com_" 
 
 local Players = game:GetService("Players")
@@ -87,7 +88,7 @@ MainFrame.Position = UDim2.new(0, 10, 0, 55)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 1
 MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150)
-MainFrame.Visible = false -- Скрыто по умолчанию при инжекте
+MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 
 -- Скрипт Drag & Drop (Перетаскивание меню)
@@ -175,7 +176,7 @@ PageSettings.Size = UDim2.new(1, 0, 1, -35)
 PageSettings.Position = UDim2.new(0, 0, 0, 35)
 PageSettings.BackgroundTransparency = 1
 PageSettings.ScrollBarThickness = 2
-PageSettings.CanvasSize = UDim2.new(0, 0, 0, 240)
+PageSettings.CanvasSize = UDim2.new(0, 0, 0, 260) -- Увеличили под новую кнопку копирования
 PageSettings.Visible = false
 PageSettings.Parent = MainFrame
 
@@ -208,7 +209,7 @@ BtnTab3.MouseButton1Click:Connect(function() selectTab(3) end)
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 220, 0, 35)
 ToggleBtn.Position = UDim2.new(0, 20, 0, 15)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30) -- Выключена по умолчанию
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
 ToggleBtn.Font = Enum.Font.SourceSansBold
@@ -246,7 +247,7 @@ StatusLabel.Parent = PageFarm
 
 -- --- СТРУКТУРА ВКЛАДКИ: НАСТРОЙКИ ---
 local FpsBtn = Instance.new("TextButton")
-FpsBtn.Size = UDim2.new(0, 220, 0, 30)
+FpsBtn.Size = UDim2.new(0, 220, 0, 25)
 FpsBtn.Position = UDim2.new(0, 20, 0, 10)
 FpsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 FpsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -256,8 +257,8 @@ FpsBtn.TextSize = 11
 FpsBtn.Parent = PageSettings
 
 local WebhookInput = Instance.new("TextBox")
-WebhookInput.Size = UDim2.new(0, 220, 0, 30)
-WebhookInput.Position = UDim2.new(0, 20, 0, 45)
+WebhookInput.Size = UDim2.new(0, 220, 0, 25)
+WebhookInput.Position = UDim2.new(0, 20, 0, 40)
 WebhookInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 WebhookInput.TextColor3 = Color3.fromRGB(150, 150, 255)
 WebhookInput.PlaceholderText = "Твой Discord Webhook"
@@ -267,8 +268,8 @@ WebhookInput.TextSize = 11
 WebhookInput.Parent = PageSettings
 
 local TestWebhookBtn = Instance.new("TextButton")
-TestWebhookBtn.Size = UDim2.new(0, 220, 0, 30)
-TestWebhookBtn.Position = UDim2.new(0, 20, 0, 80)
+TestWebhookBtn.Size = UDim2.new(0, 220, 0, 25)
+TestWebhookBtn.Position = UDim2.new(0, 20, 0, 70)
 TestWebhookBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 TestWebhookBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TestWebhookBtn.Text = "ПРОВЕРИТЬ СВЯЗЬ ДИСКОРД"
@@ -276,14 +277,25 @@ TestWebhookBtn.Font = Enum.Font.SourceSansBold
 TestWebhookBtn.TextSize = 11
 TestWebhookBtn.Parent = PageSettings
 
+-- НОВАЯ КНОПКА: СКОПИРОВАТЬ ВЕБХУК
+local CopyWebhookBtn = Instance.new("TextButton")
+CopyWebhookBtn.Size = UDim2.new(0, 220, 0, 25)
+CopyWebhookBtn.Position = UDim2.new(0, 20, 0, 100)
+CopyWebhookBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 80) -- Темно-зеленый стиль
+CopyWebhookBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopyWebhookBtn.Text = "СКОПИРОВАТЬ ВЕБХУК"
+CopyWebhookBtn.Font = Enum.Font.SourceSansBold
+CopyWebhookBtn.TextSize = 11
+CopyWebhookBtn.Parent = PageSettings
+
 local UnloadBtn = Instance.new("TextButton")
-UnloadBtn.Size = UDim2.new(0, 220, 0, 35)
-UnloadBtn.Position = UDim2.new(0, 20, 0, 120)
+UnloadBtn.Size = UDim2.new(0, 220, 0, 30)
+UnloadBtn.Position = UDim2.new(0, 20, 0, 135)
 UnloadBtn.BackgroundColor3 = Color3.fromRGB(90, 10, 10)
 UnloadBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
 UnloadBtn.Text = "ФУЛ ВЫГРУЗКА СКРИПТА"
 UnloadBtn.Font = Enum.Font.SourceSansBold
-UnloadBtn.TextSize = 13
+UnloadBtn.TextSize = 12
 UnloadBtn.Parent = PageSettings
 
 -- --- СТРУКТУРА ВКЛАДКИ: ИНФО ---
@@ -338,7 +350,7 @@ GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
 GuideLabel.Parent = PageInfo
 
--- --- ЛОГИКА ВЗАИМОДЕЙСТВИЯ С КНОПКАМИ ---
+-- --- ЛОГИКА КНОПОК ---
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
@@ -347,6 +359,18 @@ SpeedInput.FocusLost:Connect(function()
 end)
 
 WebhookInput.FocusLost:Connect(function() _G.DiscordWebhookURL = WebhookInput.Text end)
+
+-- Копирование ссылки вебхука в буфер обмена телефона/ПК
+CopyWebhookBtn.MouseButton1Click:Connect(function()
+    if not scriptRunning then return end
+    local clipboardFunc = setclipboard or (syn and syn.setclipboard) or toclipboard
+    if clipboardFunc then
+        clipboardFunc(_G.DiscordWebhookURL)
+        StatusLabel.Text = "Статус: Вебхук скопирован!"
+    else
+        StatusLabel.Text = "Статус: Чит не поддерживает копирование"
+    end
+end)
 
 ToggleBtn.MouseButton1Click:Connect(function()
     if not scriptRunning then return end
@@ -380,7 +404,7 @@ TestWebhookBtn.MouseButton1Click:Connect(function()
         {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
         {["name"] = "Высота Y:", ["value"] = tostring(currentHeight), ["inline"] = true}
     })
-    StatusLabel.Text = "Статус: Тест отправлен!"
+    StatusLabel.Text = "Статус: Тест отправлен в Дискорд!"
 end)
 
 local function unloadScript()
@@ -396,7 +420,7 @@ local function reconnect()
     if not scriptRunning then return end
     _G.TotalRejoins = _G.TotalRejoins + 1
     
-    sendSystemNotify("🔄 Авто-смена сервера", "Достигнут лимит 200,000 высоты. Чит перезаходит на новый сервер.", 16753920, {
+    sendSystemNotify("🔄 Смена сервера", "Достигнут лимит 200к. Скрипт меняет сервер, чтобы обойти невидимые бортики.", 16753920, {
         {["name"] = "Кругов пройдено:", ["value"] = tostring(_G.TotalRejoins), ["inline"] = true},
         {["name"] = "Всего пролетено:", ["value"] = tostring(math.floor(_G.TotalDistance)) .. " studs", ["inline"] = false}
     })
@@ -412,7 +436,6 @@ local function reconnect()
     end)
 end
 
--- Безопасный поиск деталей без падений и GetPivot
 local function findStairsPart()
     local foundPart = nil
     pcall(function()
@@ -435,7 +458,6 @@ local function findStairsPart()
     return foundPart
 end
 
--- Идеально плавный и стабильный рабочий цикл
 local connection
 local lastY = 0
 
@@ -452,14 +474,12 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
     local elapsed = os.time() - _G.SessionStartTime
     TimerLabel.Text = string.format("Время: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
 
-    -- Накопительный просчет расстояния
     if _G.ScriptEnabled and currentHeight > lastY then
         _G.TotalDistance = _G.TotalDistance + (currentHeight - lastY)
         DistLabel.Text = "Пролетено: " .. tostring(math.floor(_G.TotalDistance)) .. " studs"
     end
     lastY = currentHeight
 
-    -- Лимит авто-реконнекта
     if currentHeight >= _G.MaxHeight then reconnect() return end
 
     if _G.ScriptEnabled then
@@ -468,7 +488,6 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
         local targetPart = findStairsPart()
 
         if targetPart then
-            -- Остановка на найденных ступенях
             _G.ScriptEnabled = false
             hrp.Velocity = Vector3.new(0, 0, 0)
             hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
@@ -477,14 +496,12 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. tostring(targetPart.Parent.Name)
             
-            -- Оповещение в Discord
             sendSystemNotify("@everyone 🚨 НАЙДЕН ОБЪЕКТ НА ЛЕСТНИЦЕ! 🚨", "Скрипт успешно зафиксировал новые текстуры и остановил подъем. Срочно зайди в игру!", 65280, {
                 {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
                 {["name"] = "Высота Y:", ["value"] = tostring(currentHeight) .. " studs", ["inline"] = true},
                 {["name"] = "Имя модели:", ["value"] = tostring(targetPart.Parent.Name), ["inline"] = false}
             })
         else
-            -- Плавное смещение по вектору позиции (без лагов CFrame)
             hrp.Velocity = Vector3.new(0, 0, 0)
             hrp.Position = hrp.Position + Vector3.new(0, _G.ClimbSpeed * deltaTime, 0)
         end
