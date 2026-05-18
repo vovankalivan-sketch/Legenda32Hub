@@ -1,7 +1,7 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (GUB_UI_FIX)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (100% Fixed Code)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Все автоматические функции полностью вырезаны! Запуск строго руками.
+-- Все настройки строго выключены при старте
 local scriptRunning = true
 _G.ScriptEnabled = false 
 _G.ClimbSpeed = 50
@@ -11,8 +11,6 @@ _G.FpsBoostEnabled = false
 if not _G.TotalRejoins then _G.TotalRejoins = 0 end
 if not _G.TotalDistance then _G.TotalDistance = 0 end
 if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
-
--- Твой вебхук просто сохранен текстом для кнопки копирования
 _G.DiscordWebhookURL = "https://discord.com_"
 
 local Players = game:GetService("Players")
@@ -21,7 +19,7 @@ local TeleportService = game:GetService("TeleportService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Базовый Anti-AFK
+-- Защита от вылета (Anti-AFK)
 local VirtualUser = game:GetService("VirtualUser")
 local afkConnection
 afkConnection = LocalPlayer.Idled:Connect(function()
@@ -35,20 +33,24 @@ afkConnection = LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- Удаление любого старья из памяти
+-- Полная очистка старых копий меню из PlayerGui
 local pGui = LocalPlayer:WaitForChild("PlayerGui")
-if pGui:FindFirstChild("Legenda32Hub_FinalFix") then pGui.Legenda32Hub_FinalFix:Destroy() end
+for _, old in ipairs(pGui:GetChildren()) do
+    if string.find(old.Name, "Legenda32Hub") or string.find(old.Name, "AngelDog") then
+        old:Destroy()
+    end
+end
 
--- Создание UI
+-- Создание основы интерфейса
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Legenda32Hub_FinalFix"
+ScreenGui.Name = "Legenda32Hub_FinalTabsUI"
 ScreenGui.Parent = pGui
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 999
 
--- Кнопка Открыть/Скрыть
+-- Компактная кнопка Скрыть/Показать
 local OpenCloseBtn = Instance.new("TextButton")
-OpenCloseBtn.Size = UDim2.new(0, 150, 0, 35)
+OpenCloseBtn.Size = UDim2.new(0, 160, 0, 35)
 OpenCloseBtn.Position = UDim2.new(0, 10, 0, 10)
 OpenCloseBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 OpenCloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -57,7 +59,7 @@ OpenCloseBtn.Font = Enum.Font.SourceSansBold
 OpenCloseBtn.TextSize = 14
 OpenCloseBtn.Parent = ScreenGui
 
--- Главное окно
+-- Главное компактное окно меню
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 260, 0, 260)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
@@ -67,7 +69,7 @@ MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150)
 MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 
--- Перетаскивание меню (Drag & Drop)
+-- Логика перемещения меню (Drag & Drop)
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -84,9 +86,10 @@ OpenCloseBtn.MouseButton1Click:Connect(function()
     OpenCloseBtn.Text = MainFrame.Visible and "Legenda Hub [Скрыть]" or "Legenda Hub [Открыть]"
 end)
 
--- Шапка вкладок
+-- Шапка переключения вкладок
 local TabBar = Instance.new("Frame")
 TabBar.Size = UDim2.new(1, 0, 0, 35)
+TabBar.Position = UDim2.new(0, 0, 0, 0)
 TabBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 TabBar.BorderSizePixel = 0
 TabBar.Parent = MainFrame
@@ -98,6 +101,7 @@ BtnTab1.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 BtnTab1.TextColor3 = Color3.fromRGB(0, 255, 150)
 BtnTab1.Text = "ФАРМ"
 BtnTab1.Font = Enum.Font.SourceSansBold
+BtnTab1.TextSize = 13
 BtnTab1.Parent = TabBar
 
 local BtnTab2 = Instance.new("TextButton")
@@ -107,6 +111,7 @@ BtnTab2.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 BtnTab2.TextColor3 = Color3.fromRGB(180, 180, 180)
 BtnTab2.Text = "НАСТРОЙКИ"
 BtnTab2.Font = Enum.Font.SourceSansBold
+BtnTab2.TextSize = 12
 BtnTab2.Parent = TabBar
 
 local BtnTab3 = Instance.new("TextButton")
@@ -116,9 +121,10 @@ BtnTab3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 BtnTab3.TextColor3 = Color3.fromRGB(180, 180, 180)
 BtnTab3.Text = "ИНФО"
 BtnTab3.Font = Enum.Font.SourceSansBold
+BtnTab3.TextSize = 12
 BtnTab3.Parent = TabBar
 
--- Страницы
+-- Контейнеры страниц для вкладок
 local PageFarm = Instance.new("Frame")
 PageFarm.Size = UDim2.new(1, 0, 1, -35)
 PageFarm.Position = UDim2.new(0, 0, 0, 35)
@@ -138,12 +144,14 @@ PageInfo.Size = UDim2.new(1, 0, 1, -35)
 PageInfo.Position = UDim2.new(0, 0, 0, 35)
 PageInfo.BackgroundTransparency = 1
 PageInfo.ScrollBarThickness = 2
-PageInfo.CanvasSize = UDim2.new(0, 0, 0, 250)
+PageInfo.CanvasSize = UDim2.new(0, 0, 0, 260)
 PageInfo.Visible = false
 PageInfo.Parent = MainFrame
 
 local function selectTab(id)
-    PageFarm.Visible = (id == 1) PageSettings.Visible = (id == 2) PageInfo.Visible = (id == 3)
+    PageFarm.Visible = (id == 1)
+    PageSettings.Visible = (id == 2)
+    PageInfo.Visible = (id == 3)
     BtnTab1.BackgroundColor3 = (id == 1) and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(20, 20, 20)
     BtnTab1.TextColor3 = (id == 1) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(180, 180, 180)
     BtnTab2.BackgroundColor3 = (id == 2) and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(20, 20, 20)
@@ -151,11 +159,12 @@ local function selectTab(id)
     BtnTab3.BackgroundColor3 = (id == 3) and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(20, 20, 20)
     BtnTab3.TextColor3 = (id == 3) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(180, 180, 180)
 end
+
 BtnTab1.MouseButton1Click:Connect(function() selectTab(1) end)
 BtnTab2.MouseButton1Click:Connect(function() selectTab(2) end)
 BtnTab3.MouseButton1Click:Connect(function() selectTab(3) end)
 
--- Элементы ФАРМ
+-- Вкладка: ФАРМ (Элементы)
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 220, 0, 35)
 ToggleBtn.Position = UDim2.new(0, 20, 0, 15)
@@ -163,6 +172,7 @@ ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
 ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.TextSize = 14
 ToggleBtn.Parent = PageFarm
 
 local DropBtn = Instance.new("TextButton")
@@ -172,6 +182,7 @@ DropBtn.BackgroundColor3 = Color3.fromRGB(30, 60, 120)
 DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 DropBtn.Text = "Прыгнуть под карту"
 DropBtn.Font = Enum.Font.SourceSansBold
+DropBtn.TextSize = 14
 DropBtn.Parent = PageFarm
 
 local SpeedInput = Instance.new("TextBox")
@@ -181,24 +192,27 @@ SpeedInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedInput.Text = "Скорость: 50"
 SpeedInput.Font = Enum.Font.SourceSans
+SpeedInput.TextSize = 14
 SpeedInput.Parent = PageFarm
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 30)
 StatusLabel.Position = UDim2.new(0, 20, 0, 150)
 StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.Text = "Статус: Жду действий"
+StatusLabel.Text = "Статус: Ожидание игрока..."
 StatusLabel.Font = Enum.Font.SourceSansItalic
+StatusLabel.TextSize = 13
 StatusLabel.Parent = PageFarm
 
--- Элементы НАСТРОЙКИ
+-- Вкладка: НАСТРОЙКИ (Элементы)
 local FpsBtn = Instance.new("TextButton")
 FpsBtn.Size = UDim2.new(0, 220, 0, 35)
 FpsBtn.Position = UDim2.new(0, 20, 0, 15)
 FpsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 FpsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FpsBtn.Text = "Boost FPS (Экран): ВЫКЛ"
+FpsBtn.Text = "Boost FPS (Черный Экран): ВЫКЛ"
 FpsBtn.Font = Enum.Font.SourceSansBold
+FpsBtn.TextSize = 12
 FpsBtn.Parent = PageSettings
 
 local CopyWebhookBtn = Instance.new("TextButton")
@@ -208,6 +222,7 @@ CopyWebhookBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 80)
 CopyWebhookBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CopyWebhookBtn.Text = "СКОПИРОВАТЬ ВЕБХУК"
 CopyWebhookBtn.Font = Enum.Font.SourceSansBold
+CopyWebhookBtn.TextSize = 13
 CopyWebhookBtn.Parent = PageSettings
 
 local UnloadBtn = Instance.new("TextButton")
@@ -217,15 +232,17 @@ UnloadBtn.BackgroundColor3 = Color3.fromRGB(90, 10, 10)
 UnloadBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
 UnloadBtn.Text = "ФУЛ ВЫГРУЗКА СКРИПТА"
 UnloadBtn.Font = Enum.Font.SourceSansBold
+UnloadBtn.TextSize = 13
 UnloadBtn.Parent = PageSettings
 
--- Элементы ИНФО
+-- Вкладка: ИНФО (Элементы)
 local HeightLabel = Instance.new("TextLabel")
 HeightLabel.Size = UDim2.new(0, 220, 0, 20)
 HeightLabel.Position = UDim2.new(0, 20, 0, 10)
 HeightLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 HeightLabel.Text = "Высота Y: 0"
 HeightLabel.Font = Enum.Font.SourceSans
+HeightLabel.TextSize = 13
 HeightLabel.TextXAlignment = Enum.TextXAlignment.Left
 HeightLabel.Parent = PageInfo
 
@@ -235,6 +252,7 @@ TimerLabel.Position = UDim2.new(0, 20, 0, 30)
 TimerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 TimerLabel.Text = "Время: 00:00:00"
 TimerLabel.Font = Enum.Font.SourceSans
+TimerLabel.TextSize = 13
 TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
 TimerLabel.Parent = PageInfo
 
@@ -244,6 +262,7 @@ DistLabel.Position = UDim2.new(0, 20, 0, 50)
 DistLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 DistLabel.Text = "Пролетено: 0 studs"
 DistLabel.Font = Enum.Font.SourceSans
+DistLabel.TextSize = 13
 DistLabel.TextXAlignment = Enum.TextXAlignment.Left
 DistLabel.Parent = PageInfo
 
@@ -253,28 +272,38 @@ ServerLabel.Position = UDim2.new(0, 20, 0, 70)
 ServerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 ServerLabel.Text = "Серверов пройдено: 0"
 ServerLabel.Font = Enum.Font.SourceSans
+ServerLabel.TextSize = 13
 ServerLabel.TextXAlignment = Enum.TextXAlignment.Left
 ServerLabel.Parent = PageInfo
 
 local GuideLabel = Instance.new("TextLabel")
-GuideLabel.Size = UDim2.new(0, 220, 0, 130)
+GuideLabel.Size = UDim2.new(0, 220, 0, 140)
 GuideLabel.Position = UDim2.new(0, 20, 0, 95)
 GuideLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 GuideLabel.Text = "=== HUGE ANGEL DOG ===\nRAP: Бесценный\nExists: 6 шт на весь мир!\n\nШанс алтаря - 1 к 1 000 000.\nСкрипт сделает ТП на ступень и\nвыключит полет при спавне комнаты.\nКаждые 200к высоты чит обновляет\nсервер во избежание тупиков."
 GuideLabel.Font = Enum.Font.SourceSans
+GuideLabel.TextSize = 12
 GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
 GuideLabel.Parent = PageInfo
 
--- Кнопки логика
+-- Логика управления элементами
 SpeedInput.FocusLost:Connect(function()
+    if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
-    if num then _G.ClimbSpeed = num SpeedInput.Text = "Скорость: " .. tostring(num) else SpeedInput.Text = "Скорость: " .. tostring(_G.ClimbSpeed) end
+    if num then _G.ClimbSpeed = num SpeedInput.Text = "Скорость: " .. tostring(num)
+    else SpeedInput.Text = "Скорость: " .. tostring(_G.ClimbSpeed) end
 end)
 
 CopyWebhookBtn.MouseButton1Click:Connect(function()
+    if not scriptRunning then return end
     local cb = setclipboard or (syn and syn.setclipboard) or toclipboard
-    if cb then cb(_G.DiscordWebhookURL) StatusLabel.Text = "Статус: Код хука в буфере!" else StatusLabel.Text = "Статус: Ошибка буфера" end
+    if cb then
+        cb(_G.DiscordWebhookURL)
+        StatusLabel.Text = "Статус: Вебхук скопирован!"
+    else
+        StatusLabel.Text = "Статус: Буфер обмена заблокирован читом"
+    end
 end)
 
 ToggleBtn.MouseButton1Click:Connect(function()
@@ -286,10 +315,11 @@ ToggleBtn.MouseButton1Click:Connect(function()
 end)
 
 FpsBtn.MouseButton1Click:Connect(function()
+    if not scriptRunning then return end
     _G.FpsBoostEnabled = not _G.FpsBoostEnabled
     RunService:Set3dRenderingEnabled(not _G.FpsBoostEnabled)
     FpsBtn.BackgroundColor3 = _G.FpsBoostEnabled and Color3.fromRGB(30, 130, 30) or Color3.fromRGB(40, 40, 40)
-    FpsBtn.Text = _G.FpsBoostEnabled and "Boost FPS (Экран): ВКЛ" or "Boost FPS (Экран): ВЫКЛ"
+    FpsBtn.Text = _G.FpsBoostEnabled and "Boost FPS (Черный Экран): ВКЛ" or "Boost FPS (Черный Экран): ВЫКЛ"
 end)
 
 local function doDrop()
@@ -302,7 +332,8 @@ end
 DropBtn.MouseButton1Click:Connect(doDrop)
 
 local function unloadScript()
-    scriptRunning = false _G.ScriptEnabled = false RunService:Set3dRenderingEnabled(true)
+    scriptRunning = false _G.ScriptEnabled = false
+    RunService:Set3dRenderingEnabled(true)
     local character = LocalPlayer.Character
     if character and character:FindFirstChild("Humanoid") then character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) end
     if ScreenGui then ScreenGui:Destroy() end
@@ -313,10 +344,10 @@ local function reconnect()
     if not scriptRunning then return end
     _G.TotalRejoins = _G.TotalRejoins + 1
     
-    -- Динамический кэш-брейкер встроен прямо в автозапуск!
     local launchCode = [[loadstring(game:HttpGet("https://githubusercontent.com" .. tostring(math.random(1,99999))))()]]
     local qot = queue_on_teleport or (syn and syn.queue_on_teleport)
     if qot then pcall(function() qot(launchCode) end) end
+    
     task.wait(1)
     pcall(function()
         if #Players:GetPlayers() <= 1 then TeleportService:Teleport(game.PlaceId, LocalPlayer)
@@ -335,7 +366,8 @@ local function findStairsPart()
                     if pPart then
                         local character = LocalPlayer.Character
                         if character and character:FindFirstChild("HumanoidRootPart") then
-                            if (pPart.Position - character.HumanoidRootPart.Position).Magnitude < 200 then foundPart = pPart break end
+                            local dist = (pPart.Position - character.HumanoidRootPart.Position).Magnitude
+                            if dist < 200 then foundPart = pPart break end
                         end
                     end
                 end
@@ -345,10 +377,12 @@ local function findStairsPart()
     return foundPart
 end
 
+-- Рабочий поток
 local connection
 local lastY = 0
 connection = RunService.Heartbeat:Connect(function(deltaTime)
     if not scriptRunning then if connection then connection:Disconnect() end return end
+
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     local hrp = character.HumanoidRootPart
@@ -370,11 +404,14 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
 
     if _G.ScriptEnabled then
         if character:FindFirstChild("Humanoid") then character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics) end
+
         local targetPart = findStairsPart()
+
         if targetPart then
             _G.ScriptEnabled = false
             hrp.Velocity = Vector3.new(0, 0, 0)
             hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
+            
             ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. tostring(targetPart.Parent.Name)
