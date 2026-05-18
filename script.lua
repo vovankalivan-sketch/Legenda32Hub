@@ -1,20 +1,18 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (Tabs + Safe Discord)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (Perfect Stable Edition)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Локальные переменные управления (Строго ручной запуск!)
+-- Локальный контроль (Строго ручное управление, никакого автостарта!)
 local scriptRunning = true
 _G.ScriptEnabled = false 
 _G.ClimbSpeed = 50
 _G.MaxHeight = 200000
 _G.FpsBoostEnabled = false
 
--- Статистика и ссылка на вебхук в глобальной памяти
+-- Глобальная статистика
 if not _G.TotalRejoins then _G.TotalRejoins = 0 end
 if not _G.TotalDistance then _G.TotalDistance = 0 end
 if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
-if not _G.DiscordWebhookURL or _G.DiscordWebhookURL == "" then 
-    _G.DiscordWebhookURL = "https://discord.com_" 
-end
+_G.DiscordWebhookURL = "https://discord.com_" 
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,11 +21,9 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- Изолированная и безопасная функция отправки в Discord
+-- Безопасный изолированный Discord поток
 local function sendSystemNotify(title, desc, color, fields)
     if not _G.DiscordWebhookURL or _G.DiscordWebhookURL == "" then return end
-    
-    -- Запускаем в отдельном потоке, чтобы лаги интернета не тормозили физику Roblox
     task.spawn(function()
         pcall(function()
             local data = {
@@ -48,7 +44,7 @@ local function sendSystemNotify(title, desc, color, fields)
     end)
 end
 
--- Встроенный Anti-AFK
+-- Изолированный Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 local afkConnection
 afkConnection = LocalPlayer.Idled:Connect(function()
@@ -62,11 +58,11 @@ afkConnection = LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- Очистка старого GUI
+-- Удаление старых копий меню
 local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Legenda32Hub_Delta")
 if oldGui then oldGui:Destroy() end
 
--- Создание интерфейса
+-- Создание основы интерфейса
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Legenda32Hub_Delta"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -75,7 +71,7 @@ ScreenGui.DisplayOrder = 999
 
 -- Компактная кнопка Скрыть/Показать
 local OpenCloseBtn = Instance.new("TextButton")
-OpenCloseBtn.Size = UDim2.new(0, 150, 0, 35)
+OpenCloseBtn.Size = UDim2.new(0, 160, 0, 35)
 OpenCloseBtn.Position = UDim2.new(0, 10, 0, 10)
 OpenCloseBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 OpenCloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -84,17 +80,17 @@ OpenCloseBtn.Font = Enum.Font.SourceSansBold
 OpenCloseBtn.TextSize = 14
 OpenCloseBtn.Parent = ScreenGui
 
--- Главное окно
+-- Главное фрейм-окно хаба
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 260, 0, 260)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 1
 MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150)
-MainFrame.Visible = false
+MainFrame.Visible = false -- Скрыто по умолчанию при инжекте
 MainFrame.Parent = ScreenGui
 
--- Логика перемещения меню (Drag & Drop)
+-- Скрипт Drag & Drop (Перетаскивание меню)
 local dragging, dragInput, dragStart, startPos
 local function updateDrag(input)
     local delta = input.Position - dragStart
@@ -128,7 +124,7 @@ OpenCloseBtn.MouseButton1Click:Connect(function()
     OpenCloseBtn.Text = MainFrame.Visible and "Legenda Hub [Скрыть]" or "Legenda Hub [Открыть]"
 end)
 
--- --- ПАНЕЛЬ ВКЛАДОК ---
+-- --- ПАНЕЛЬ ВКЛАДОК (ВЕРХ ХАБА) ---
 local TabBar = Instance.new("Frame")
 TabBar.Size = UDim2.new(1, 0, 0, 35)
 TabBar.Position = UDim2.new(0, 0, 0, 0)
@@ -161,12 +157,12 @@ BtnTab3.Size = UDim2.new(0.34, 0, 1, 0)
 BtnTab3.Position = UDim2.new(0.66, 0, 0, 0)
 BtnTab3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 BtnTab3.TextColor3 = Color3.fromRGB(180, 180, 180)
-BtnTab3.Text = "ИНФО / СТАТА"
+BtnTab3.Text = "ИНФО"
 BtnTab3.Font = Enum.Font.SourceSansBold
 BtnTab3.TextSize = 12
 BtnTab3.Parent = TabBar
 
--- --- ФРЕЙМЫ ВКЛАДОК ---
+-- Контейнеры страниц вкладок
 local PageFarm = Instance.new("Frame")
 PageFarm.Size = UDim2.new(1, 0, 1, -35)
 PageFarm.Position = UDim2.new(0, 0, 0, 35)
@@ -174,11 +170,11 @@ PageFarm.BackgroundTransparency = 1
 PageFarm.Visible = true
 PageFarm.Parent = MainFrame
 
-local PageSettings = Instance.new("ScrollingFrame") -- Скролл для настроек, так как добавились поля дискорда
+local PageSettings = Instance.new("ScrollingFrame")
 PageSettings.Size = UDim2.new(1, 0, 1, -35)
 PageSettings.Position = UDim2.new(0, 0, 0, 35)
 PageSettings.BackgroundTransparency = 1
-PageSettings.ScrollBarThickness = 3
+PageSettings.ScrollBarThickness = 2
 PageSettings.CanvasSize = UDim2.new(0, 0, 0, 240)
 PageSettings.Visible = false
 PageSettings.Parent = MainFrame
@@ -187,8 +183,8 @@ local PageInfo = Instance.new("ScrollingFrame")
 PageInfo.Size = UDim2.new(1, 0, 1, -35)
 PageInfo.Position = UDim2.new(0, 0, 0, 35)
 PageInfo.BackgroundTransparency = 1
-PageInfo.ScrollBarThickness = 3
-PageInfo.CanvasSize = UDim2.new(0, 0, 0, 250)
+PageInfo.ScrollBarThickness = 2
+PageInfo.CanvasSize = UDim2.new(0, 0, 0, 260)
 PageInfo.Visible = false
 PageInfo.Parent = MainFrame
 
@@ -208,11 +204,11 @@ BtnTab1.MouseButton1Click:Connect(function() selectTab(1) end)
 BtnTab2.MouseButton1Click:Connect(function() selectTab(2) end)
 BtnTab3.MouseButton1Click:Connect(function() selectTab(3) end)
 
--- --- ВКЛАДКА «ФАРМ» ---
+-- --- СТРУКТУРА ВКЛАДКИ: ФАРМ ---
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 220, 0, 35)
 ToggleBtn.Position = UDim2.new(0, 20, 0, 15)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30) -- Выключена по умолчанию
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
 ToggleBtn.Font = Enum.Font.SourceSansBold
@@ -243,12 +239,12 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 30)
 StatusLabel.Position = UDim2.new(0, 20, 0, 150)
 StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.Text = "Статус: Ожидание игрока..."
+StatusLabel.Text = "Статус: Нажми ТП под карту"
 StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
 StatusLabel.Parent = PageFarm
 
--- --- ВКЛАДКА «НАСТРОЙКИ» (С СИСТЕМОЙ ДИСКОРДА) ---
+-- --- СТРУКТУРА ВКЛАДКИ: НАСТРОЙКИ ---
 local FpsBtn = Instance.new("TextButton")
 FpsBtn.Size = UDim2.new(0, 220, 0, 30)
 FpsBtn.Position = UDim2.new(0, 20, 0, 10)
@@ -264,7 +260,7 @@ WebhookInput.Size = UDim2.new(0, 220, 0, 30)
 WebhookInput.Position = UDim2.new(0, 20, 0, 45)
 WebhookInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 WebhookInput.TextColor3 = Color3.fromRGB(150, 150, 255)
-WebhookInput.PlaceholderText = "Ссылка на твой Discord Webhook"
+WebhookInput.PlaceholderText = "Твой Discord Webhook"
 WebhookInput.Text = _G.DiscordWebhookURL or ""
 WebhookInput.Font = Enum.Font.SourceSans
 WebhookInput.TextSize = 11
@@ -290,7 +286,7 @@ UnloadBtn.Font = Enum.Font.SourceSansBold
 UnloadBtn.TextSize = 13
 UnloadBtn.Parent = PageSettings
 
--- --- ВКЛАДКА «ИНФО» ---
+-- --- СТРУКТУРА ВКЛАДКИ: ИНФО ---
 local HeightLabel = Instance.new("TextLabel")
 HeightLabel.Size = UDim2.new(0, 220, 0, 20)
 HeightLabel.Position = UDim2.new(0, 20, 0, 10)
@@ -342,7 +338,7 @@ GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
 GuideLabel.Parent = PageInfo
 
--- --- ЛОГИКА ФУНКЦИОНАЛА ---
+-- --- ЛОГИКА ВЗАИМОДЕЙСТВИЯ С КНОПКАМИ ---
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
@@ -377,15 +373,14 @@ local function doDrop()
 end
 DropBtn.MouseButton1Click:Connect(doDrop)
 
--- Ручной тест вебхука
 TestWebhookBtn.MouseButton1Click:Connect(function()
     if not scriptRunning then return end
     local currentHeight = math.floor(LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position.Y or 0)
-    sendSystemNotify("🔔 Ручной тест связи", "Твой вебхук в хабе настроен правильно и готов ловить Ангелдога.", 3447003, {
+    sendSystemNotify("🔔 Ручной тест связи", "Твой вебхук в хабе настроен правильно и готов к работе.", 3447003, {
         {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
         {["name"] = "Высота Y:", ["value"] = tostring(currentHeight), ["inline"] = true}
     })
-    StatusLabel.Text = "Статус: Тест отправлен в Дискорд!"
+    StatusLabel.Text = "Статус: Тест отправлен!"
 end)
 
 local function unloadScript()
@@ -401,7 +396,7 @@ local function reconnect()
     if not scriptRunning then return end
     _G.TotalRejoins = _G.TotalRejoins + 1
     
-    sendSystemNotify("🔄 Смена сервера", "Достигнут лимит 200к. Скрипт меняет сервер, чтобы обойти невидимые бортики.", 16753920, {
+    sendSystemNotify("🔄 Авто-смена сервера", "Достигнут лимит 200,000 высоты. Чит перезаходит на новый сервер.", 16753920, {
         {["name"] = "Кругов пройдено:", ["value"] = tostring(_G.TotalRejoins), ["inline"] = true},
         {["name"] = "Всего пролетено:", ["value"] = tostring(math.floor(_G.TotalDistance)) .. " studs", ["inline"] = false}
     })
@@ -417,6 +412,7 @@ local function reconnect()
     end)
 end
 
+-- Безопасный поиск деталей без падений и GetPivot
 local function findStairsPart()
     local foundPart = nil
     pcall(function()
@@ -439,6 +435,7 @@ local function findStairsPart()
     return foundPart
 end
 
+-- Идеально плавный и стабильный рабочий цикл
 local connection
 local lastY = 0
 
@@ -455,12 +452,14 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
     local elapsed = os.time() - _G.SessionStartTime
     TimerLabel.Text = string.format("Время: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
 
+    -- Накопительный просчет расстояния
     if _G.ScriptEnabled and currentHeight > lastY then
         _G.TotalDistance = _G.TotalDistance + (currentHeight - lastY)
         DistLabel.Text = "Пролетено: " .. tostring(math.floor(_G.TotalDistance)) .. " studs"
     end
     lastY = currentHeight
 
+    -- Лимит авто-реконнекта
     if currentHeight >= _G.MaxHeight then reconnect() return end
 
     if _G.ScriptEnabled then
@@ -469,23 +468,25 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
         local targetPart = findStairsPart()
 
         if targetPart then
+            -- Остановка на найденных ступенях
             _G.ScriptEnabled = false
-            hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
             hrp.Velocity = Vector3.new(0, 0, 0)
+            hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
             
             ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. tostring(targetPart.Parent.Name)
             
-            -- Оповещение при нахождении пролета
-            sendSystemNotify("@everyone 🚨 НАЙДЕН ОБЪЕКТ НА ЛЕСТНИЦЕ! 🚨", "Скрипт успешно зафиксировал новые текстуры и остановил подъем. Срочно зайди на сервер!", 65280, {
+            -- Оповещение в Discord
+            sendSystemNotify("@everyone 🚨 НАЙДЕН ОБЪЕКТ НА ЛЕСТНИЦЕ! 🚨", "Скрипт успешно зафиксировал новые текстуры и остановил подъем. Срочно зайди в игру!", 65280, {
                 {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
                 {["name"] = "Высота Y:", ["value"] = tostring(currentHeight) .. " studs", ["inline"] = true},
                 {["name"] = "Имя модели:", ["value"] = tostring(targetPart.Parent.Name), ["inline"] = false}
             })
         else
-            hrp.CFrame = hrp.CFrame * CFrame.new(0, _G.ClimbSpeed * deltaTime, 0)
+            -- Плавное смещение по вектору позиции (без лагов CFrame)
             hrp.Velocity = Vector3.new(0, 0, 0)
+            hrp.Position = hrp.Position + Vector3.new(0, _G.ClimbSpeed * deltaTime, 0)
         end
     end
 end)
