@@ -1,4 +1,4 @@
--- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (Zero Net Edition)
+-- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (Safe Zero Net)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- Статистика в памяти игры
@@ -49,7 +49,7 @@ OpenCloseBtn.Font = Enum.Font.SourceSansBold
 OpenCloseBtn.TextSize = 14
 OpenCloseBtn.Parent = ScreenGui
 
--- Главный фрейм меню (Размер уменьшен, так как нет вебхуков)
+-- Главный фрейм меню
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 260, 0, 460)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
@@ -255,7 +255,7 @@ local function unloadScript()
     if character and character:FindFirstChild("Humanoid") then character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) end
     ScreenGui:Destroy()
 end
-UnloadBtn.MouseButton1Connect && UnloadBtn.MouseButton1Click:Connect(unloadScript)
+UnloadBtn.MouseButton1Click:Connect(unloadScript)
 
 local function reconnect()
     if not scriptRunning then return end
