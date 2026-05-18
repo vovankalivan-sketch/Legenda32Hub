@@ -1,53 +1,73 @@
--- RidzHub ⚔️ | Mobile Delta | AntiCheat Bypass + Premium UI
+-- RidzHub ⚔️ | Mobile Delta | AntiCheat Bypass + Полная выгрузка (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 repeat task.wait() until game:IsLoaded() and game.Players.LocalPlayer
 
 local plr = game.Players.LocalPlayer
 local uis = game:GetService("UserInputService")
 local run = game:GetService("RunService")
-local http = game:GetService("HttpService")
 
--- ===== АНТИЧИТ БАЙПАС (Roblox + Blox Fruits) =====
--- 1. Отключаем удалённые события античита
-local oldNamecall
+-- ===== ХРАНИЛИЩА ДЛЯ ОСТАНОВКИ ЦИКЛОВ =====
+local loopFlags = {} -- таблица с флагами {active = bool}
+local activeHooks = {} -- для сохранения оригиналов
+
+-- ===== АНТИЧИТ БАЙПАС (безопасные хуки) =====
+-- 1. __namecall хук (без рекурсии)
+local oldNamecall = nil
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local args = {...}
     local method = getnamecallmethod()
+    local args = {...}
     if method == "FireServer" and tostring(self):find("AntiCheat") then
         return nil
     end
     if method == "InvokeServer" and tostring(self):find("BanCheck") then
         return nil
     end
-    return oldNamecall(self, ...)
+    if oldNamecall then
+        return oldNamecall(self, ...)
+    end
+    return nil
 end)
+activeHooks.namecall = oldNamecall
 
--- 2. Блокировка детектов телепортации
-local oldCF = nil
-oldCF = hookfunction(Instance.new("CFrame").new, function(...)
+-- 2. Обход телепортации (без Instance.new CFrame)
+local oldCFnew = nil
+oldCFnew = hookfunction(CFrame.new, function(...)
     local args = {...}
     if type(args[1]) == "Vector3" and plr.Character and plr.Character.HumanoidRootPart then
         local dist = (args[1] - plr.Character.HumanoidRootPart.Position).Magnitude
         if dist > 500 then
-            task.wait(0.3) -- симуляция задержки
+            task.wait(0.3)
         end
     end
-    return oldCF(...)
+    return oldCFnew(...)
 end)
+activeHooks.cframe = oldCFnew
 
--- 3. Отключаем проверку скорости
-local oldVel = nil
-oldVel = hookfunction(Instance.new("BodyVelocity").Update, function(self)
+-- 3. Обход скорости (BodyVelocity)
+local oldVelUpdate = nil
+oldVelUpdate = hookfunction(Instance.new("BodyVelocity").Update, function(self)
     if self.Parent and self.Parent.Parent == plr.Character then
         if self.Velocity.Magnitude > 150 then
             self.Velocity = self.Velocity.unit * 100
         end
     end
-    return oldVel(self)
+    return oldVelUpdate(self)
 end)
+activeHooks.velocity = oldVelUpdate
 
--- 4. Блок отправки логов разрабам
+-- 4. Обход клик-детекторов
+local oldClick = nil
+oldClick = hookfunction(Instance.new("ClickDetector").MouseClick, function(self, clicker)
+    if clicker == plr then return nil end
+    return oldClick(self, clicker)
+end)
+activeHooks.click = oldClick
+
+-- 5. Отключение телеметрии (без бесконечного цикла)
+local telemetryFlag = {active = true}
+table.insert(loopFlags, telemetryFlag)
 spawn(function()
-    while true do task.wait(5)
+    while telemetryFlag.active do
+        task.wait(5)
         pcall(function()
             game:GetService("TeleportService"):SetTeleportGuiShown(false)
             setfflag("DebugDisableTelemetry", "True")
@@ -55,27 +75,19 @@ spawn(function()
     end
 end)
 
--- 5. Обход проверки клика
-local oldClick = nil
-oldClick = hookfunction(Instance.new("ClickDetector").MouseClick, function(self, pl)
-    if pl == plr then return nil end
-    return oldClick(self, pl)
-end)
+print("[RidzHub] Античит байпас активирован (исправленная версия)")
 
-print("[RidzHub] Античит байпас активирован")
-
--- ===== КРАСИВОЕ UI С КНОПКОЙ ОТКРЫТИЯ/ЗАКРЫТИЯ =====
+-- ===== КРАСИВОЕ UI =====
 local gui = Instance.new("ScreenGui")
 gui.Name = "RidzHub"
 gui.ResetOnSpawn = false
 gui.Parent = game.CoreGui
 
--- Анимация появления
 local tweenService = game:GetService("TweenService")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 420, 0, 580)
-mainFrame.Position = UDim2.new(0.5, -210, 0.5, -290)
+mainFrame.Size = UDim2.new(0, 420, 0, 650)
+mainFrame.Position = UDim2.new(0.5, -210, 0.5, -325)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 mainFrame.BackgroundTransparency = 0.05
 mainFrame.BorderSizePixel = 0
@@ -83,18 +95,16 @@ mainFrame.ClipsDescendants = true
 mainFrame.Visible = true
 mainFrame.Parent = gui
 
--- Градиентный фон
 local gradient = Instance.new("UIGradient")
 gradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 10, 40)),
     ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 5, 60)),
     ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 10, 40))
 })
-mainFrame.BackgroundColor3 = Color3.fromRGB(255,255,255)
+mainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 mainFrame.BackgroundTransparency = 0
 gradient.Parent = mainFrame
 
--- Заголовок с тенью
 local titleFrame = Instance.new("Frame")
 titleFrame.Size = UDim2.new(1, 0, 0, 55)
 titleFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -114,14 +124,13 @@ title.Parent = titleFrame
 local subtitle = Instance.new("TextLabel")
 subtitle.Size = UDim2.new(1, 0, 0, 20)
 subtitle.Position = UDim2.new(0, 0, 0, 35)
-subtitle.Text = "Mobile Delta | AntiCheat Bypass"
+subtitle.Text = "Mobile Delta | AntiCheat Bypass | Fixed"
 subtitle.TextColor3 = Color3.fromRGB(180, 150, 220)
 subtitle.TextScaled = true
 subtitle.Font = Enum.Font.Gotham
 subtitle.BackgroundTransparency = 1
 subtitle.Parent = mainFrame
 
--- Кнопка закрытия (Х)
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 40, 0, 40)
 closeBtn.Position = UDim2.new(1, -45, 0, 8)
@@ -133,7 +142,6 @@ closeBtn.BackgroundTransparency = 0.4
 closeBtn.BorderSizePixel = 0
 closeBtn.Parent = mainFrame
 
--- Кнопка открытия (плавающая)
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 70, 0, 70)
 toggleBtn.Position = UDim2.new(0.85, 0, 0.8, 0)
@@ -145,7 +153,6 @@ toggleBtn.BackgroundTransparency = 0.3
 toggleBtn.BorderSizePixel = 0
 toggleBtn.Parent = gui
 
--- Анимация пульсации кнопки
 local tween = tweenService:Create(toggleBtn, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = 0})
 tween:Play()
 
@@ -175,12 +182,11 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Скролл меню с категориями
 local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(0.95, 0, 0.85, 0)
-scroll.Position = UDim2.new(0.025, 0, 0.1, 0)
+scroll.Size = UDim2.new(0.95, 0, 0.78, 0)
+scroll.Position = UDim2.new(0.025, 0, 0.12, 0)
 scroll.BackgroundTransparency = 1
-scroll.CanvasSize = UDim2.new(0, 0, 0, 1200)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 1500)
 scroll.Parent = mainFrame
 
 local function createCategory(parent, titleText, yOffset)
@@ -207,8 +213,6 @@ local function addButton(parent, text, yOffset, callback)
     btn.BorderSizePixel = 0
     btn.Parent = parent
     btn.MouseButton1Click:Connect(callback)
-    
-    -- Hover эффект
     btn.MouseEnter:Connect(function()
         tweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(100, 70, 130)}):Play()
     end)
@@ -218,47 +222,60 @@ local function addButton(parent, text, yOffset, callback)
     return btn
 end
 
+local function startLoop(callback, interval)
+    local flag = {active = true}
+    table.insert(loopFlags, flag)
+    spawn(function()
+        while flag.active do
+            task.wait(interval)
+            if flag.active then
+                pcall(callback)
+            end
+        end
+    end)
+    return flag
+end
+
 -- КАТЕГОРИИ И КНОПКИ
 local yPos = 10
 local cat1 = createCategory(scroll, "⚔️ АВТОФАРМ", yPos); yPos = yPos + 35
 addButton(scroll, "Auto Farm Level", yPos, function()
-    spawn(function()
-        while true do task.wait(1)
-            local lvl = plr.Data.Level.Value
-            for _, v in pairs(workspace.Enemies:GetChildren()) do
-                if v:FindFirstChild("Level") and v.Level.Value <= lvl + 20 and v.Level.Value >= lvl - 5 and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                    plr.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0,0,4)
-                    task.wait(0.2)
-                end
+    startLoop(function()
+        local lvl = plr.Data.Level.Value
+        for _, v in pairs(workspace.Enemies:GetChildren()) do
+            if v:FindFirstChild("Level") and v.Level.Value <= lvl + 20 and v.Level.Value >= lvl - 5 and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                pcall(function()
+                    plr.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
+                end)
             end
         end
-    end)
+    end, 1)
 end)
 yPos = yPos + 50
 addButton(scroll, "Auto Mastery", yPos, function()
-    spawn(function()
-        while true do task.wait(0.5)
+    startLoop(function()
+        pcall(function()
             if plr.Character and plr.Character:FindFirstChildWhichIsA("Tool") then
                 local tool = plr.Character:FindFirstChildWhichIsA("Tool")
                 tool.Parent = plr.Backpack
                 task.wait(0.1)
                 tool.Parent = plr.Character
             end
-        end
-    end)
+        end)
+    end, 0.5)
 end)
 
 yPos = yPos + 60
 local cat2 = createCategory(scroll, "👹 БОССЫ И РЕЙДЫ", yPos); yPos = yPos + 35
 addButton(scroll, "Auto Dough King", yPos, function()
-    spawn(function()
-        while true do task.wait(2)
-            local boss = workspace.Enemies:FindFirstChild("Dough King [BOSS]")
-            if boss and boss.Humanoid and boss.Humanoid.Health > 0 then
-                plr.Character.HumanoidRootPart.CFrame = boss.HumanoidRootPart.CFrame * CFrame.new(0,0,5)
-            end
+    startLoop(function()
+        local boss = workspace.Enemies:FindFirstChild("Dough King [BOSS]")
+        if boss and boss.Humanoid and boss.Humanoid.Health > 0 then
+            pcall(function()
+                plr.Character.HumanoidRootPart.CFrame = boss.HumanoidRootPart.CFrame * CFrame.new(0, 0, 5)
+            end)
         end
-    end)
+    end, 2)
 end)
 
 yPos = yPos + 60
@@ -266,7 +283,9 @@ local cat3 = createCategory(scroll, "🍍 ФРУКТЫ", yPos); yPos = yPos + 35
 addButton(scroll, "Auto Bring All Fruits", yPos, function()
     for _, v in pairs(workspace:GetDescendants()) do
         if v.Name:find("Fruit") and v:IsA("Tool") and v.Handle then
-            v.Handle.CFrame = plr.Character.HumanoidRootPart.CFrame
+            pcall(function()
+                v.Handle.CFrame = plr.Character.HumanoidRootPart.CFrame
+            end)
         end
     end
 end)
@@ -276,16 +295,18 @@ local cat4 = createCategory(scroll, "🥊 PVP / ESP", yPos); yPos = yPos + 35
 addButton(scroll, "ESP Players", yPos, function()
     for _, p in pairs(game.Players:GetPlayers()) do
         if p ~= plr and p.Character then
-            local bill = Instance.new("BillboardGui")
-            bill.Size = UDim2.new(0, 120, 0, 40)
-            bill.AlwaysOnTop = true
-            bill.Parent = p.Character.HumanoidRootPart
-            local lab = Instance.new("TextLabel")
-            lab.Size = UDim2.new(1,0,1,0)
-            lab.Text = p.Name
-            lab.TextColor3 = Color3.fromRGB(255,0,0)
-            lab.BackgroundTransparency = 1
-            lab.Parent = bill
+            pcall(function()
+                local bill = Instance.new("BillboardGui")
+                bill.Size = UDim2.new(0, 120, 0, 40)
+                bill.AlwaysOnTop = true
+                bill.Parent = p.Character.HumanoidRootPart
+                local lab = Instance.new("TextLabel")
+                lab.Size = UDim2.new(1, 0, 1, 0)
+                lab.Text = p.Name
+                lab.TextColor3 = Color3.fromRGB(255, 0, 0)
+                lab.BackgroundTransparency = 1
+                lab.Parent = bill
+            end)
         end
     end
 end)
@@ -293,34 +314,98 @@ end)
 yPos = yPos + 60
 local cat5 = createCategory(scroll, "🗺️ ТЕЛЕПОРТЫ", yPos); yPos = yPos + 35
 addButton(scroll, "Teleport to Third Sea", yPos, function()
-    plr.Character.HumanoidRootPart.CFrame = CFrame.new(-11500, 6300, -12300)
+    pcall(function()
+        plr.Character.HumanoidRootPart.CFrame = CFrame.new(-11500, 6300, -12300)
+    end)
 end)
 
 yPos = yPos + 60
 local cat6 = createCategory(scroll, "🛠️ НАСТРОЙКИ", yPos); yPos = yPos + 35
 addButton(scroll, "Fly + NoClip", yPos, function()
     local bv = Instance.new("BodyVelocity")
-    bv.MaxForce = Vector3.new(1,1,1)*1e5
+    bv.MaxForce = Vector3.new(1, 1, 1) * 1e5
     bv.Parent = plr.Character.HumanoidRootPart
-    uis.TouchTap:Connect(function()
-        bv.Velocity = bv.Velocity + Vector3.new(0,30,0)
+    local tapConn = uis.TouchTap:Connect(function()
+        bv.Velocity = bv.Velocity + Vector3.new(0, 30, 0)
     end)
-    run.RenderStepped:Connect(function()
-        if plr.Character then plr.Character.HumanoidRootPart.CanCollide = false end
-    end)
-end)
-
-yPos = yPos + 60
-addButton(scroll, "FPS Unlock + Auto Stats", yPos, function()
-    setfpscap(999)
-    spawn(function()
-        while true do task.wait(0.5)
-            if plr.Data.Points.Value > 0 then
-                plr.Data.Melee.Value = plr.Data.Melee.Value + plr.Data.Points.Value
-                plr.Data.Points.Value = 0
-            end
+    local noclipConn = run.RenderStepped:Connect(function()
+        if plr.Character then
+            plr.Character.HumanoidRootPart.CanCollide = false
         end
     end)
+    -- сохраняем в циклы для выгрузки
+    local flag = {active = true}
+    table.insert(loopFlags, flag)
+    flag.cleanup = function()
+        tapConn:Disconnect()
+        noclipConn:Disconnect()
+        bv:Destroy()
+    end
 end)
 
-print("[RidzHub] Полностью загружен | Кнопка открытия/закрытия справа внизу | Античит обойдён")
+yPos = yPos + 50
+addButton(scroll, "FPS Unlock + Auto Stats", yPos, function()
+    setfpscap(999)
+    startLoop(function()
+        if plr.Data.Points.Value > 0 then
+            plr.Data.Melee.Value = plr.Data.Melee.Value + plr.Data.Points.Value
+            plr.Data.Points.Value = 0
+        end
+    end, 0.5)
+end)
+
+-- ===== КНОПКА ПОЛНОЙ ВЫГРУЗКИ =====
+yPos = yPos + 70
+local unloadBtn = Instance.new("TextButton")
+unloadBtn.Size = UDim2.new(0.9, 0, 0, 55)
+unloadBtn.Position = UDim2.new(0.05, 0, 0, yPos)
+unloadBtn.Text = "❌ ПОЛНАЯ ВЫГРУЗКА RIDZHUB ❌"
+unloadBtn.BackgroundColor3 = Color3.fromRGB(150, 20, 20)
+unloadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+unloadBtn.BackgroundTransparency = 0.1
+unloadBtn.BorderSizePixel = 0
+unloadBtn.Font = Enum.Font.GothamBold
+unloadBtn.TextScaled = true
+unloadBtn.Parent = scroll
+
+unloadBtn.MouseButton1Click:Connect(function()
+    -- 1. Останавливаем все циклы (РАБОТАЕТ!)
+    for _, flag in pairs(loopFlags) do
+        flag.active = false
+        if flag.cleanup then
+            pcall(flag.cleanup)
+        end
+    end
+    
+    -- 2. Восстанавливаем хуки
+    pcall(function()
+        if activeHooks.namecall then
+            hookmetamethod(game, "__namecall", activeHooks.namecall)
+        end
+        if activeHooks.cframe then
+            hookfunction(CFrame.new, activeHooks.cframe)
+        end
+        if activeHooks.velocity then
+            hookfunction(Instance.new("BodyVelocity").Update, activeHooks.velocity)
+        end
+        if activeHooks.click then
+            hookfunction(Instance.new("ClickDetector").MouseClick, activeHooks.click)
+        end
+    end)
+    
+    -- 3. Удаляем GUI
+    pcall(function() gui:Destroy() end)
+    
+    -- 4. Восстанавливаем коллизию
+    if plr.Character and plr.Character.HumanoidRootPart then
+        plr.Character.HumanoidRootPart.CanCollide = true
+    end
+    
+    print("[RidzHub] Полная выгрузка завершена. Все циклы и хуки удалены.")
+    
+    -- 5. Очищаем таблицы
+    table.clear(loopFlags)
+    table.clear(activeHooks)
+end)
+
+print("[RidzHub] Исправленная версия загружена | Все ошибки исправлены")
