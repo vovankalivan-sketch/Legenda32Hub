@@ -1,18 +1,15 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (Perfect Stable + Copy Webhook)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (Perfect Tabs Fix)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Локальный контроль (Ручной запуск!)
 local scriptRunning = true
 _G.ScriptEnabled = false 
 _G.ClimbSpeed = 50
 _G.MaxHeight = 200000
 _G.FpsBoostEnabled = false
 
--- Статистика и вебхук в глобальной памяти
 if not _G.TotalRejoins then _G.TotalRejoins = 0 end
 if not _G.TotalDistance then _G.TotalDistance = 0 end
 if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
--- Твой вебхук вшит железно
 _G.DiscordWebhookURL = "https://discord.com_" 
 
 local Players = game:GetService("Players")
@@ -22,7 +19,6 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- Безопасный изолированный Discord поток
 local function sendSystemNotify(title, desc, color, fields)
     if not _G.DiscordWebhookURL or _G.DiscordWebhookURL == "" then return end
     task.spawn(function()
@@ -45,7 +41,6 @@ local function sendSystemNotify(title, desc, color, fields)
     end)
 end
 
--- Изолированный Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 local afkConnection
 afkConnection = LocalPlayer.Idled:Connect(function()
@@ -59,18 +54,15 @@ afkConnection = LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- Удаление старых копий меню
 local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Legenda32Hub_Delta")
 if oldGui then oldGui:Destroy() end
 
--- Создание основы интерфейса
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Legenda32Hub_Delta"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 999
 
--- Компактная кнопка Скрыть/Показать
 local OpenCloseBtn = Instance.new("TextButton")
 OpenCloseBtn.Size = UDim2.new(0, 160, 0, 35)
 OpenCloseBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -81,7 +73,6 @@ OpenCloseBtn.Font = Enum.Font.SourceSansBold
 OpenCloseBtn.TextSize = 14
 OpenCloseBtn.Parent = ScreenGui
 
--- Главное фрейм-окно хаба
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 260, 0, 260)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
@@ -91,7 +82,6 @@ MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150)
 MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 
--- Скрипт Drag & Drop (Перетаскивание меню)
 local dragging, dragInput, dragStart, startPos
 local function updateDrag(input)
     local delta = input.Position - dragStart
@@ -125,7 +115,6 @@ OpenCloseBtn.MouseButton1Click:Connect(function()
     OpenCloseBtn.Text = MainFrame.Visible and "Legenda Hub [Скрыть]" or "Legenda Hub [Открыть]"
 end)
 
--- --- ПАНЕЛЬ ВКЛАДОК (ВЕРХ ХАБА) ---
 local TabBar = Instance.new("Frame")
 TabBar.Size = UDim2.new(1, 0, 0, 35)
 TabBar.Position = UDim2.new(0, 0, 0, 0)
@@ -163,7 +152,6 @@ BtnTab3.Font = Enum.Font.SourceSansBold
 BtnTab3.TextSize = 12
 BtnTab3.Parent = TabBar
 
--- Контейнеры страниц вкладок
 local PageFarm = Instance.new("Frame")
 PageFarm.Size = UDim2.new(1, 0, 1, -35)
 PageFarm.Position = UDim2.new(0, 0, 0, 35)
@@ -176,7 +164,7 @@ PageSettings.Size = UDim2.new(1, 0, 1, -35)
 PageSettings.Position = UDim2.new(0, 0, 0, 35)
 PageSettings.BackgroundTransparency = 1
 PageSettings.ScrollBarThickness = 2
-PageSettings.CanvasSize = UDim2.new(0, 0, 0, 260) -- Увеличили под новую кнопку копирования
+PageSettings.CanvasSize = UDim2.new(0, 0, 0, 240)
 PageSettings.Visible = false
 PageSettings.Parent = MainFrame
 
@@ -205,7 +193,6 @@ BtnTab1.MouseButton1Click:Connect(function() selectTab(1) end)
 BtnTab2.MouseButton1Click:Connect(function() selectTab(2) end)
 BtnTab3.MouseButton1Click:Connect(function() selectTab(3) end)
 
--- --- СТРУКТУРА ВКЛАДКИ: ФАРМ ---
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 220, 0, 35)
 ToggleBtn.Position = UDim2.new(0, 20, 0, 15)
@@ -245,7 +232,6 @@ StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
 StatusLabel.Parent = PageFarm
 
--- --- СТРУКТУРА ВКЛАДКИ: НАСТРОЙКИ ---
 local FpsBtn = Instance.new("TextButton")
 FpsBtn.Size = UDim2.new(0, 220, 0, 25)
 FpsBtn.Position = UDim2.new(0, 20, 0, 10)
@@ -277,11 +263,10 @@ TestWebhookBtn.Font = Enum.Font.SourceSansBold
 TestWebhookBtn.TextSize = 11
 TestWebhookBtn.Parent = PageSettings
 
--- НОВАЯ КНОПКА: СКОПИРОВАТЬ ВЕБХУК
 local CopyWebhookBtn = Instance.new("TextButton")
 CopyWebhookBtn.Size = UDim2.new(0, 220, 0, 25)
 CopyWebhookBtn.Position = UDim2.new(0, 20, 0, 100)
-CopyWebhookBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 80) -- Темно-зеленый стиль
+CopyWebhookBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 80)
 CopyWebhookBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CopyWebhookBtn.Text = "СКОПИРОВАТЬ ВЕБХУК"
 CopyWebhookBtn.Font = Enum.Font.SourceSansBold
@@ -298,7 +283,6 @@ UnloadBtn.Font = Enum.Font.SourceSansBold
 UnloadBtn.TextSize = 12
 UnloadBtn.Parent = PageSettings
 
--- --- СТРУКТУРА ВКЛАДКИ: ИНФО ---
 local HeightLabel = Instance.new("TextLabel")
 HeightLabel.Size = UDim2.new(0, 220, 0, 20)
 HeightLabel.Position = UDim2.new(0, 20, 0, 10)
@@ -350,7 +334,6 @@ GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
 GuideLabel.Parent = PageInfo
 
--- --- ЛОГИКА КНОПОК ---
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
@@ -360,7 +343,6 @@ end)
 
 WebhookInput.FocusLost:Connect(function() _G.DiscordWebhookURL = WebhookInput.Text end)
 
--- Копирование ссылки вебхука в буфер обмена телефона/ПК
 CopyWebhookBtn.MouseButton1Click:Connect(function()
     if not scriptRunning then return end
     local clipboardFunc = setclipboard or (syn and syn.setclipboard) or toclipboard
@@ -368,7 +350,7 @@ CopyWebhookBtn.MouseButton1Click:Connect(function()
         clipboardFunc(_G.DiscordWebhookURL)
         StatusLabel.Text = "Статус: Вебхук скопирован!"
     else
-        StatusLabel.Text = "Статус: Чит не поддерживает копирование"
+        StatusLabel.Text = "Статус: Чит не поддерживает буфер"
     end
 end)
 
@@ -404,7 +386,7 @@ TestWebhookBtn.MouseButton1Click:Connect(function()
         {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
         {["name"] = "Высота Y:", ["value"] = tostring(currentHeight), ["inline"] = true}
     })
-    StatusLabel.Text = "Статус: Тест отправлен в Дискорд!"
+    StatusLabel.Text = "Статус: Тест отправлен!"
 end)
 
 local function unloadScript()
@@ -472,7 +454,7 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
     HeightLabel.Text = "Высота Y: " .. tostring(currentHeight)
 
     local elapsed = os.time() - _G.SessionStartTime
-    TimerLabel.Text = string.format("Время: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
+    TimerLabel.Text = string.format("Time: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
 
     if _G.ScriptEnabled and currentHeight > lastY then
         _G.TotalDistance = _G.TotalDistance + (currentHeight - lastY)
