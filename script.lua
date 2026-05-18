@@ -1,29 +1,39 @@
--- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (Стабильная версия)
+-- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (Перетаскиваемый)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Переменные для контроля выгрузки
+-- Переменные контроля
 local scriptRunning = true
 _G.ScriptEnabled = false
 _G.ClimbSpeed = 50
-_G.MaxHeight = 200000 -- Безопасный лимит до того, как сломается физика Roblox
+_G.MaxHeight = 200000 
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Корректное удаление старых копий в Delta Client
+-- Встроенный Anti-AFK (Чтобы игра не кикнула за АФК)
+local VirtualUser = game:GetService("VirtualUser")
+LocalPlayer.Idled:Connect(function()
+    if scriptRunning then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0,0))
+    end
+end)
+
+-- Удаление старых копий
 local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Legenda32Hub_Delta")
 if oldGui then oldGui:Destroy() end
 
--- Создание интерфейса под Delta Client
+-- Интерфейс GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Legenda32Hub_Delta"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999 -- Поверх меню Delta Client
+ScreenGui.DisplayOrder = 999
 
--- Кнопка Скрыть/Показать
+-- Главная кнопка Скрыть/Показать
 local OpenCloseBtn = Instance.new("TextButton")
 OpenCloseBtn.Size = UDim2.new(0, 140, 0, 35)
 OpenCloseBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -40,8 +50,36 @@ MainFrame.Size = UDim2.new(0, 240, 0, 340)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 1
-MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150) -- Зеленый неоновый стиль Delta
+MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150)
 MainFrame.Parent = ScreenGui
+
+-- ЛОГИКА ПЕРЕМЕЩЕНИЯ МЕНЮ (Drag & Drop)
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then update(input) end
+end)
 
 -- Сворачивание меню по клику
 OpenCloseBtn.MouseButton1Click:Connect(function()
@@ -50,7 +88,7 @@ OpenCloseBtn.MouseButton1Click:Connect(function()
     OpenCloseBtn.Text = MainFrame.Visible and "Legenda Hub (Скрыть)" or "Legenda Hub (Открыть)"
 end)
 
--- Заголовок хаба
+-- Заголовок хаба (За него тоже можно тащить)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
@@ -192,7 +230,6 @@ local function findStairs()
             if string.find(name, "stair") or string.find(name, "climb") or string.find(name, "cloud") or string.find(name, "staircase") then
                 local character = LocalPlayer.Character
                 if character and character:FindFirstChild("HumanoidRootPart") then
-                    -- Проверяем расстояние вблизи персонажа
                     local dist = (item:GetPivot().Position - character.HumanoidRootPart.Position).Magnitude
                     if dist < 200 then 
                         return item
@@ -233,8 +270,15 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
         local foundObject = findStairs()
 
         if foundObject then
-            -- Стабилизация персонажа на найденной ступени
+            -- Функция Anti-Fall (Создание временной невидимой платформы под игроком, чтобы не упасть)
+            local bPart = Instance.new("Part")
+            bPart.Size = Vector3.new(20, 1, 20)
+            bPart.Transparency = 1
+            bPart.Anchored = true
+            bPart.Parent = workspace
+            
             local pCFrame = foundObject:GetPivot()
+            bPart.CFrame = pCFrame + Vector3.new(0, 3, 0)
             hrp.CFrame = pCFrame + Vector3.new(0, 5, 0)
             hrp.Velocity = Vector3.new(0, 0, 0)
             
@@ -242,6 +286,10 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
             ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. foundObject.Name
+            
+            -- Удаляем платформу через 5 секунд, когда игрок сориентируется
+            task.wait(5)
+            if bPart then bPart:Destroy() end
         else
             -- Стабильный полет вверх
             StatusLabel.Text = "Статус: Полет вверх..."
