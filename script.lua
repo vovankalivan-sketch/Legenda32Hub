@@ -1,16 +1,17 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (Manual & Tabbed)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (РЕАЛЬНЫЕ ВКЛАДКИ)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Статистика в памяти
-if not _G.TotalRejoins then _G.TotalRejoins = 0 end
-if not _G.TotalDistance then _G.TotalDistance = 0 end
-if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
-
+-- Локальные переменные управления (Строго выключено при старте!)
 local scriptRunning = true
-_G.ScriptEnabled = false -- ВЫКЛЮЧЕНО ПО УМОЛЧАНИЮ (Ручной запуск)
+_G.ScriptEnabled = false 
 _G.ClimbSpeed = 50
 _G.MaxHeight = 200000
 _G.FpsBoostEnabled = false
+
+-- Статистика в глобальной памяти (не сбрасывается при реконекте)
+if not _G.TotalRejoins then _G.TotalRejoins = 0 end
+if not _G.TotalDistance then _G.TotalDistance = 0 end
+if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -18,7 +19,7 @@ local TeleportService = game:GetService("TeleportService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Встроенный Anti-AFK
+-- Рабочий Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 local afkConnection
 afkConnection = LocalPlayer.Idled:Connect(function()
@@ -32,38 +33,39 @@ afkConnection = LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- Удаление старого GUI
+-- Очистка старого GUI перед выводом нового
 local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Legenda32Hub_Delta")
 if oldGui then oldGui:Destroy() end
 
--- Создание интерфейса
+-- Создание корневого интерфейса
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Legenda32Hub_Delta"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 999
 
--- Кнопка Скрыть/Показать
+-- Компактная кнопка Скрыть/Показать
 local OpenCloseBtn = Instance.new("TextButton")
-OpenCloseBtn.Size = UDim2.new(0, 140, 0, 35)
+OpenCloseBtn.Size = UDim2.new(0, 150, 0, 35)
 OpenCloseBtn.Position = UDim2.new(0, 10, 0, 10)
 OpenCloseBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 OpenCloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-OpenCloseBtn.Text = "Legenda Hub (Скрыть)"
+OpenCloseBtn.Text = "Legenda Hub [Открыть]"
 OpenCloseBtn.Font = Enum.Font.SourceSansBold
 OpenCloseBtn.TextSize = 14
 OpenCloseBtn.Parent = ScreenGui
 
--- Главное компактное окно меню
+-- Главное окно (Размер фиксированный под вкладки)
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 260, 0, 320)
+MainFrame.Size = UDim2.new(0, 260, 0, 260)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 1
 MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150)
+MainFrame.Visible = false -- Меню скрыто изначально, чтобы не мешать!
 MainFrame.Parent = ScreenGui
 
--- Логика перемещения меню (Drag & Drop)
+-- Логика перетаскивания (Drag & Drop)
 local dragging, dragInput, dragStart, startPos
 local function updateDrag(input)
     local delta = input.Position - dragStart
@@ -94,212 +96,205 @@ end)
 OpenCloseBtn.MouseButton1Click:Connect(function()
     if not scriptRunning then return end
     MainFrame.Visible = not MainFrame.Visible
-    OpenCloseBtn.Text = MainFrame.Visible and "Legenda Hub (Скрыть)" or "Legenda Hub (Открыть)"
+    OpenCloseBtn.Text = MainFrame.Visible and "Legenda Hub [Скрыть]" or "Legenda Hub [Открыть]"
 end)
 
--- Заголовок хаба
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-Title.TextColor3 = Color3.fromRGB(0, 255, 150)
-Title.Text = "Legenda32 Hub [Tabs]"
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 15
-Title.Parent = MainFrame
+-- --- СИСТЕМА ВКЛАДОК (ВЕРХНЯЯ ПАНЕЛЬ) ---
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(1, 0, 0, 35)
+TabBar.Position = UDim2.new(0, 0, 0, 0)
+TabBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+TabBar.BorderSizePixel = 0
+TabBar.Parent = MainFrame
 
--- --- СОЗДАНИЕ КНОПОК ВКЛАДОК ---
-local TabFrame = Instance.new("Frame")
-TabFrame.Size = UDim2.new(1, 0, 0, 30)
-TabFrame.Position = UDim2.new(0, 0, 0, 35)
-TabFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-TabFrame.BorderSizePixel = 0
-TabFrame.Parent = MainFrame
+local BtnTab1 = Instance.new("TextButton")
+BtnTab1.Size = UDim2.new(0.33, 0, 1, 0)
+BtnTab1.Position = UDim2.new(0, 0, 0, 0)
+BtnTab1.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+BtnTab1.TextColor3 = Color3.fromRGB(0, 255, 150)
+BtnTab1.Text = "ФАРМ"
+BtnTab1.Font = Enum.Font.SourceSansBold
+BtnTab1.TextSize = 13
+BtnTab1.Parent = TabBar
 
-local Tab1Btn = Instance.new("TextButton")
-Tab1Btn.Size = UDim2.new(0.33, 0, 1, 0)
-Tab1Btn.Position = UDim2.new(0, 0, 0, 0)
-Tab1Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Tab1Btn.TextColor3 = Color3.fromRGB(0, 255, 150)
-Tab1Btn.Text = "Фарм"
-Tab1Btn.Font = Enum.Font.SourceSansBold
-Tab1Btn.Parent = TabFrame
+local BtnTab2 = Instance.new("TextButton")
+BtnTab2.Size = UDim2.new(0.33, 0, 1, 0)
+BtnTab2.Position = UDim2.new(0.33, 0, 0, 0)
+BtnTab2.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+BtnTab2.TextColor3 = Color3.fromRGB(180, 180, 180)
+BtnTab2.Text = "НАСТРОЙКИ"
+BtnTab2.Font = Enum.Font.SourceSansBold
+BtnTab2.TextSize = 12
+BtnTab2.Parent = TabBar
 
-local Tab2Btn = Instance.new("TextButton")
-Tab2Btn.Size = UDim2.new(0.33, 0, 1, 0)
-Tab2Btn.Position = UDim2.new(0.33, 0, 0, 0)
-Tab2Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Tab2Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-Tab2Btn.Text = "Настройки"
-Tab2Btn.Font = Enum.Font.SourceSansBold
-Tab2Btn.Parent = TabFrame
+local BtnTab3 = Instance.new("TextButton")
+BtnTab3.Size = UDim2.new(0.34, 0, 1, 0)
+BtnTab3.Position = UDim2.new(0.66, 0, 0, 0)
+BtnTab3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+BtnTab3.TextColor3 = Color3.fromRGB(180, 180, 180)
+BtnTab3.Text = "ИНФО / СТАТА"
+BtnTab3.Font = Enum.Font.SourceSansBold
+BtnTab3.TextSize = 12
+BtnTab3.Parent = TabBar
 
-local Tab3Btn = Instance.new("TextButton")
-Tab3Btn.Size = UDim2.new(0.34, 0, 1, 0)
-Tab3Btn.Position = UDim2.new(0.66, 0, 0, 0)
-Tab3Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Tab3Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-Tab3Btn.Text = "Инфо / Стата"
-Tab3Btn.Font = Enum.Font.SourceSansBold
-Tab3Btn.Parent = TabFrame
+-- --- ФРЕЙМЫ ДЛЯ ХРАНЕНИЯ ЭЛЕМЕНТОВ ВКЛАДОК ---
+local PageFarm = Instance.new("Frame")
+PageFarm.Size = UDim2.new(1, 0, 1, -35)
+PageFarm.Position = UDim2.new(0, 0, 0, 35)
+PageFarm.BackgroundTransparency = 1
+PageFarm.Visible = true
+PageFarm.Parent = MainFrame
 
--- --- КОНТЕЙНЕРЫ ДЛЯ ВКЛАДОК ---
-local FarmTab = Instance.new("Frame")
-FarmTab.Size = UDim2.new(1, 0, 1, -65)
-FarmTab.Position = UDim2.new(0, 0, 0, 65)
-FarmTab.BackgroundTransparency = 1
-FarmTab.Visible = true
-FarmTab.Parent = MainFrame
+local PageSettings = Instance.new("Frame")
+PageSettings.Size = UDim2.new(1, 0, 1, -35)
+PageSettings.Position = UDim2.new(0, 0, 0, 35)
+PageSettings.BackgroundTransparency = 1
+PageSettings.Visible = false
+PageSettings.Parent = MainFrame
 
-local SettingsTab = Instance.new("Frame")
-SettingsTab.Size = UDim2.new(1, 0, 1, -65)
-SettingsTab.Position = UDim2.new(0, 0, 0, 65)
-SettingsTab.BackgroundTransparency = 1
-SettingsTab.Visible = false
-SettingsTab.Parent = MainFrame
+local PageInfo = Instance.new("ScrollingFrame")
+PageInfo.Size = UDim2.new(1, 0, 1, -35)
+PageInfo.Position = UDim2.new(0, 0, 0, 35)
+PageInfo.BackgroundTransparency = 1
+PageInfo.ScrollBarThickness = 3
+PageInfo.CanvasSize = UDim2.new(0, 0, 0, 250)
+PageInfo.Visible = false
+PageInfo.Parent = MainFrame
 
-local InfoTab = Instance.new("ScrollingFrame")
-InfoTab.Size = UDim2.new(1, 0, 1, -65)
-InfoTab.Position = UDim2.new(0, 0, 0, 65)
-InfoTab.BackgroundTransparency = 1
-InfoTab.ScrollBarThickness = 4
-InfoTab.CanvasSize = UDim2.new(0, 0, 0, 320)
-InfoTab.Visible = false
-InfoTab.Parent = MainFrame
+-- Функция аппаратного переключения видимости вкладок
+local function selectTab(id)
+    PageFarm.Visible = (id == 1)
+    PageSettings.Visible = (id == 2)
+    PageInfo.Visible = (id == 3)
 
--- Логика переключения вкладок
-local function switchTab(tabNumber)
-    FarmTab.Visible = (tabNumber == 1)
-    SettingsTab.Visible = (tabNumber == 2)
-    InfoTab.Visible = (tabNumber == 3)
-    
-    Tab1Btn.BackgroundColor3 = (tabNumber == 1) and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(25, 25, 25)
-    Tab1Btn.TextColor3 = (tabNumber == 1) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(200, 200, 200)
-    
-    Tab2Btn.BackgroundColor3 = (tabNumber == 2) and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(25, 25, 25)
-    Tab2Btn.TextColor3 = (tabNumber == 2) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(200, 200, 200)
-    
-    Tab3Btn.BackgroundColor3 = (tabNumber == 3) and Color3.fromRGB(35, 35, 35) or Color3.fromRGB(25, 25, 25)
-    Tab3Btn.TextColor3 = (tabNumber == 3) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(200, 200, 200)
+    BtnTab1.BackgroundColor3 = (id == 1) and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(20, 20, 20)
+    BtnTab1.TextColor3 = (id == 1) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(180, 180, 180)
+
+    BtnTab2.BackgroundColor3 = (id == 2) and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(20, 20, 20)
+    BtnTab2.TextColor3 = (id == 2) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(180, 180, 180)
+
+    BtnTab3.BackgroundColor3 = (id == 3) and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(20, 20, 20)
+    BtnTab3.TextColor3 = (id == 3) and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(180, 180, 180)
 end
 
-Tab1Btn.MouseButton1Click:Connect(function() switchTab(1) end)
-Tab2Btn.MouseButton1Click:Connect(function() switchTab(2) end)
-Tab3Btn.MouseButton1Click:Connect(function() switchTab(3) end)
+BtnTab1.MouseButton1Click:Connect(function() selectTab(1) end)
+BtnTab2.MouseButton1Click:Connect(function() selectTab(2) end)
+BtnTab3.MouseButton1Click:Connect(function() selectTab(3) end)
 
--- --- ВКЛАДКА «ФАРМ» ---
+-- --- НАПОЛНЕНИЕ ВКЛАДКИ «ФАРМ» ---
 local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 220, 0, 40)
-ToggleBtn.Position = UDim2.new(0, 20, 0, 20)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30) -- По умолчанию КРАСНАЯ (Выкл)
+ToggleBtn.Size = UDim2.new(0, 220, 0, 35)
+ToggleBtn.Position = UDim2.new(0, 20, 0, 15)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30) -- Строго выключен по умолчанию!
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 14
-ToggleBtn.Parent = FarmTab
+ToggleBtn.Parent = PageFarm
 
-local TPBtn = Instance.new("TextButton")
-TPBtn.Size = UDim2.new(0, 220, 0, 40)
-TPBtn.Position = UDim2.new(0, 20, 0, 75)
-TPBtn.BackgroundColor3 = Color3.fromRGB(30, 60, 120)
-TPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-TPBtn.Text = "Прыгнуть под карту"
-TPBtn.Font = Enum.Font.SourceSansBold
-TPBtn.TextSize = 14
-TPBtn.Parent = FarmTab
+local DropBtn = Instance.new("TextButton")
+DropBtn.Size = UDim2.new(0, 220, 0, 35)
+DropBtn.Position = UDim2.new(0, 20, 0, 60)
+DropBtn.BackgroundColor3 = Color3.fromRGB(30, 60, 120)
+DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DropBtn.Text = "Прыгнуть под карту"
+DropBtn.Font = Enum.Font.SourceSansBold
+DropBtn.TextSize = 14
+DropBtn.Parent = PageFarm
 
 local SpeedInput = Instance.new("TextBox")
-SpeedInput.Size = UDim2.new(0, 220, 0, 40)
-SpeedInput.Position = UDim2.new(0, 20, 0, 130)
+SpeedInput.Size = UDim2.new(0, 220, 0, 35)
+SpeedInput.Position = UDim2.new(0, 20, 0, 105)
 SpeedInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedInput.Text = "Скорость: " .. tostring(_G.ClimbSpeed)
 SpeedInput.Font = Enum.Font.SourceSans
 SpeedInput.TextSize = 14
-SpeedInput.Parent = FarmTab
+SpeedInput.Parent = PageFarm
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 30)
-StatusLabel.Position = UDim2.new(0, 20, 0, 185)
+StatusLabel.Position = UDim2.new(0, 20, 0, 150)
 StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.Text = "Статус: Ожидание действий"
+StatusLabel.Text = "Статус: Ожидание игрока..."
 StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
-StatusLabel.Parent = FarmTab
+StatusLabel.Parent = PageFarm
 
--- --- ВКЛАДКА «НАСТРОЙКИ» ---
+-- --- НАПОЛНЕНИЕ ВКЛАДКИ «НАСТРОЙКИ» ---
 local FpsBtn = Instance.new("TextButton")
-FpsBtn.Size = UDim2.new(0, 220, 0, 40)
+FpsBtn.Size = UDim2.new(0, 220, 0, 35)
 FpsBtn.Position = UDim2.new(0, 20, 0, 20)
 FpsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 FpsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 FpsBtn.Text = "Boost FPS (Черный Экран): ВЫКЛ"
 FpsBtn.Font = Enum.Font.SourceSansBold
 FpsBtn.TextSize = 12
-FpsBtn.Parent = SettingsTab
+FpsBtn.Parent = PageSettings
 
 local UnloadBtn = Instance.new("TextButton")
-UnloadBtn.Size = UDim2.new(0, 220, 0, 40)
-UnloadBtn.Position = UDim2.new(0, 20, 0, 75)
+UnloadBtn.Size = UDim2.new(0, 220, 0, 35)
+UnloadBtn.Position = UDim2.new(0, 20, 0, 65)
 UnloadBtn.BackgroundColor3 = Color3.fromRGB(90, 10, 10)
 UnloadBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
 UnloadBtn.Text = "ФУЛ ВЫГРУЗКА СКРИПТА"
 UnloadBtn.Font = Enum.Font.SourceSansBold
 UnloadBtn.TextSize = 14
-UnloadBtn.Parent = SettingsTab
+UnloadBtn.Parent = PageSettings
 
--- --- ВКЛАДКА «ИНФО / СТАТА» ---
+-- --- НАПОЛНЕНИЕ ВКЛАДКИ «ИНФО» ---
 local HeightLabel = Instance.new("TextLabel")
 HeightLabel.Size = UDim2.new(0, 220, 0, 20)
 HeightLabel.Position = UDim2.new(0, 20, 0, 10)
 HeightLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-HeightLabel.Text = "Текущая высота Y: 0"
+HeightLabel.Text = "Высота Y: 0"
 HeightLabel.Font = Enum.Font.SourceSans
 HeightLabel.TextSize = 13
 HeightLabel.TextXAlignment = Enum.TextXAlignment.Left
-HeightLabel.Parent = InfoTab
+HeightLabel.Parent = PageInfo
 
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(0, 220, 0, 20)
-TimerLabel.Position = UDim2.new(0, 20, 0, 35)
+TimerLabel.Position = UDim2.new(0, 20, 0, 30)
 TimerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-TimerLabel.Text = "Время в игре: 00:00:00"
+TimerLabel.Text = "Время: 00:00:00"
 TimerLabel.Font = Enum.Font.SourceSans
 TimerLabel.TextSize = 13
 TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
-TimerLabel.Parent = InfoTab
+TimerLabel.Parent = PageInfo
 
 local DistLabel = Instance.new("TextLabel")
 DistLabel.Size = UDim2.new(0, 220, 0, 20)
-DistLabel.Position = UDim2.new(0, 20, 0, 60)
+DistLabel.Position = UDim2.new(0, 20, 0, 50)
 DistLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-DistLabel.Text = "Всего пролетено: 0 studs"
+DistLabel.Text = "Пролетено: 0 studs"
 DistLabel.Font = Enum.Font.SourceSans
 DistLabel.TextSize = 13
 DistLabel.TextXAlignment = Enum.TextXAlignment.Left
-DistLabel.Parent = InfoTab
+DistLabel.Parent = PageInfo
 
 local ServerLabel = Instance.new("TextLabel")
 ServerLabel.Size = UDim2.new(0, 220, 0, 20)
-ServerLabel.Position = UDim2.new(0, 20, 0, 85)
+ServerLabel.Position = UDim2.new(0, 20, 0, 70)
 ServerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-ServerLabel.Text = "Пройдено серверов: " .. tostring(_G.TotalRejoins)
+ServerLabel.Text = "Серверов пройдено: " .. tostring(_G.TotalRejoins)
 ServerLabel.Font = Enum.Font.SourceSans
 ServerLabel.TextSize = 13
 ServerLabel.TextXAlignment = Enum.TextXAlignment.Left
-ServerLabel.Parent = InfoTab
+ServerLabel.Parent = PageInfo
 
 local GuideLabel = Instance.new("TextLabel")
-GuideLabel.Size = UDim2.new(0, 220, 0, 180)
-GuideLabel.Position = UDim2.new(0, 20, 0, 115)
+GuideLabel.Size = UDim2.new(0, 220, 0, 140)
+GuideLabel.Position = UDim2.new(0, 20, 0, 95)
 GuideLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-GuideLabel.Text = "=== HUGE ANGEL DOG ===\nRAP: Неоценен (Бесценный)\nExists: 6 шт на весь мир!\n\nГайд: Шанс появления алтаря\nсоставляет 1 к 1 000 000.\nЛестница генерируется по\nмере полета. Скрипт сам\nсделает ТП и выключит полет,\nесли комната заспавнится.\nКаждые 200к высоты чит сам\nобновляет сервер от багов."
+GuideLabel.Text = "=== HUGE ANGEL DOG ===\nRAP: Неоценен (Бесценный)\nExists: 6 шт на весь мир!\n\nШанс появления алтаря - 1 к 1 000 000.\nСкрипт сделает ТП на ступень и\nвыключит полет при спавне комнаты.\nКаждые 200к высоты чит обновляет\nсервер во избежание тупиков."
 GuideLabel.Font = Enum.Font.SourceSans
-GuideLabel.TextSize = 13
+GuideLabel.TextSize = 12
 GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
-GuideLabel.Parent = InfoTab
+GuideLabel.Parent = PageInfo
 
--- --- ЛОГИКА ---
+-- --- ФУНКЦИОНАЛЬНАЯ ЛОГИКА ---
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
@@ -330,7 +325,7 @@ local function doDrop()
         StatusLabel.Text = "Статус: Упал под карту"
     end
 end
-TPBtn.MouseButton1Click:Connect(doDrop)
+DropBtn.MouseButton1Click:Connect(doDrop)
 
 local function unloadScript()
     scriptRunning = false 
@@ -347,7 +342,6 @@ UnloadBtn.MouseButton1Click:Connect(unloadScript)
 local function reconnect()
     if not scriptRunning then return end
     _G.TotalRejoins = _G.TotalRejoins + 1
-    StatusLabel.Text = "Лимит 200к! Перезаход..."
     
     local launchCode = [[loadstring(game:HttpGet("https://githubusercontent.com" .. tostring(math.random(1,9999))))()]]
     local qot = queue_on_teleport or (syn and syn.queue_on_teleport)
@@ -375,10 +369,7 @@ local function findStairsPart()
                         local character = LocalPlayer.Character
                         if character and character:FindFirstChild("HumanoidRootPart") then
                             local dist = (pPart.Position - character.HumanoidRootPart.Position).Magnitude
-                            if dist < 200 then
-                                foundPart = pPart
-                                break
-                            end
+                            if dist < 200 then foundPart = pPart break end
                         end
                     end
                 end
@@ -392,36 +383,28 @@ local connection
 local lastY = 0
 
 connection = RunService.Heartbeat:Connect(function(deltaTime)
-    if not scriptRunning then 
-        if connection then connection:Disconnect() end 
-        return 
-    end
+    if not scriptRunning then if connection then connection:Disconnect() end return end
 
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     local hrp = character.HumanoidRootPart
 
     local currentHeight = math.floor(hrp.Position.Y)
-    HeightLabel.Text = "Текущая высота Y: " .. tostring(currentHeight)
+    HeightLabel.Text = "Высота Y: " .. tostring(currentHeight)
 
     local elapsed = os.time() - _G.SessionStartTime
-    TimerLabel.Text = string.format("Время в игре: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
+    TimerLabel.Text = string.format("Время: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
 
     if _G.ScriptEnabled and currentHeight > lastY then
         _G.TotalDistance = _G.TotalDistance + (currentHeight - lastY)
-        DistLabel.Text = "Всего пролетено: " .. tostring(math.floor(_G.TotalDistance)) .. " studs"
+        DistLabel.Text = "Пролетено: " .. tostring(math.floor(_G.TotalDistance)) .. " studs"
     end
     lastY = currentHeight
 
-    if currentHeight >= _G.MaxHeight then 
-        reconnect() 
-        return 
-    end
+    if currentHeight >= _G.MaxHeight then reconnect() return end
 
     if _G.ScriptEnabled then
-        if character:FindFirstChild("Humanoid") then 
-            character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics) 
-        end
+        if character:FindFirstChild("Humanoid") then character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics) end
 
         local targetPart = findStairsPart()
 
