@@ -1,6 +1,7 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (Perfect Tabs Fix)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (NEW UI FIX)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+-- Все автоматические функции полностью вырезаны! Запуск строго руками.
 local scriptRunning = true
 _G.ScriptEnabled = false 
 _G.ClimbSpeed = 50
@@ -19,6 +20,7 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
+-- Изолированный Discord поток
 local function sendSystemNotify(title, desc, color, fields)
     if not _G.DiscordWebhookURL or _G.DiscordWebhookURL == "" then return end
     task.spawn(function()
@@ -41,6 +43,7 @@ local function sendSystemNotify(title, desc, color, fields)
     end)
 end
 
+-- Изолированный Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 local afkConnection
 afkConnection = LocalPlayer.Idled:Connect(function()
@@ -54,15 +57,22 @@ afkConnection = LocalPlayer.Idled:Connect(function()
     end
 end)
 
-local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Legenda32Hub_Delta")
-if oldGui then oldGui:Destroy() end
+-- ЖЕСТКАЯ ОЧИСТКА: Удаляем любые старые версии GUI из памяти игры
+local pGui = LocalPlayer:WaitForChild("PlayerGui")
+for _, old in ipairs(pGui:GetChildren()) do
+    if string.find(old.Name, "Legenda32Hub") or string.find(old.Name, "AngelDog") then
+        old:Destroy()
+    end
+end
 
+-- Создаем абсолютно новый уникальный ScreenGui (чтобы обойти кэш Дельты)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Legenda32Hub_Delta"
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Name = "Legenda32Hub_NewTabsUI"
+ScreenGui.Parent = pGui
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 999
 
+-- Кнопка Скрыть/Показать
 local OpenCloseBtn = Instance.new("TextButton")
 OpenCloseBtn.Size = UDim2.new(0, 160, 0, 35)
 OpenCloseBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -73,6 +83,7 @@ OpenCloseBtn.Font = Enum.Font.SourceSansBold
 OpenCloseBtn.TextSize = 14
 OpenCloseBtn.Parent = ScreenGui
 
+-- Главное компактное окно хаба
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 260, 0, 260)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
@@ -82,6 +93,7 @@ MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 150)
 MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 
+-- Логика перетаскивания (Drag & Drop)
 local dragging, dragInput, dragStart, startPos
 local function updateDrag(input)
     local delta = input.Position - dragStart
@@ -115,6 +127,7 @@ OpenCloseBtn.MouseButton1Click:Connect(function()
     OpenCloseBtn.Text = MainFrame.Visible and "Legenda Hub [Скрыть]" or "Legenda Hub [Открыть]"
 end)
 
+-- --- ПАНЕЛЬ ВКЛАДОК (ВЕРХ МЕНЮ) ---
 local TabBar = Instance.new("Frame")
 TabBar.Size = UDim2.new(1, 0, 0, 35)
 TabBar.Position = UDim2.new(0, 0, 0, 0)
@@ -152,6 +165,7 @@ BtnTab3.Font = Enum.Font.SourceSansBold
 BtnTab3.TextSize = 12
 BtnTab3.Parent = TabBar
 
+-- Контейнеры страниц
 local PageFarm = Instance.new("Frame")
 PageFarm.Size = UDim2.new(1, 0, 1, -35)
 PageFarm.Position = UDim2.new(0, 0, 0, 35)
@@ -193,6 +207,7 @@ BtnTab1.MouseButton1Click:Connect(function() selectTab(1) end)
 BtnTab2.MouseButton1Click:Connect(function() selectTab(2) end)
 BtnTab3.MouseButton1Click:Connect(function() selectTab(3) end)
 
+-- Вкладка ФАРМ
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 220, 0, 35)
 ToggleBtn.Position = UDim2.new(0, 20, 0, 15)
@@ -227,11 +242,12 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 30)
 StatusLabel.Position = UDim2.new(0, 20, 0, 150)
 StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.Text = "Статус: Нажми ТП под карту"
+StatusLabel.Text = "Статус: Ожидание игрока..."
 StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
 StatusLabel.Parent = PageFarm
 
+-- Вкладка НАСТРОЙКИ
 local FpsBtn = Instance.new("TextButton")
 FpsBtn.Size = UDim2.new(0, 220, 0, 25)
 FpsBtn.Position = UDim2.new(0, 20, 0, 10)
@@ -247,7 +263,7 @@ WebhookInput.Size = UDim2.new(0, 220, 0, 25)
 WebhookInput.Position = UDim2.new(0, 20, 0, 40)
 WebhookInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 WebhookInput.TextColor3 = Color3.fromRGB(150, 150, 255)
-WebhookInput.PlaceholderText = "Твой Discord Webhook"
+WebhookInput.PlaceholderText = "Ссылка на твой Discord Webhook"
 WebhookInput.Text = _G.DiscordWebhookURL or ""
 WebhookInput.Font = Enum.Font.SourceSans
 WebhookInput.TextSize = 11
@@ -283,6 +299,7 @@ UnloadBtn.Font = Enum.Font.SourceSansBold
 UnloadBtn.TextSize = 12
 UnloadBtn.Parent = PageSettings
 
+-- Вкладка ИНФО
 local HeightLabel = Instance.new("TextLabel")
 HeightLabel.Size = UDim2.new(0, 220, 0, 20)
 HeightLabel.Position = UDim2.new(0, 20, 0, 10)
@@ -334,6 +351,7 @@ GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
 GuideLabel.Parent = PageInfo
 
+-- --- ЛОГИКА ---
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
@@ -350,7 +368,7 @@ CopyWebhookBtn.MouseButton1Click:Connect(function()
         clipboardFunc(_G.DiscordWebhookURL)
         StatusLabel.Text = "Статус: Вебхук скопирован!"
     else
-        StatusLabel.Text = "Статус: Чит не поддерживает буфер"
+        StatusLabel.Text = "Статус: Ошибка буфера"
     end
 end)
 
@@ -407,7 +425,7 @@ local function reconnect()
         {["name"] = "Всего пролетено:", ["value"] = tostring(math.floor(_G.TotalDistance)) .. " studs", ["inline"] = false}
     })
 
-    local launchCode = [[loadstring(game:HttpGet("https://githubusercontent.com" .. tostring(math.random(1,9999))))()]]
+    local launchCode = [[loadstring(game:HttpGet("https://githubusercontent.com" .. tostring(math.random(1,99999))))()]]
     local qot = queue_on_teleport or (syn and syn.queue_on_teleport)
     if qot then pcall(function() qot(launchCode) end) end
     
@@ -454,7 +472,7 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
     HeightLabel.Text = "Высота Y: " .. tostring(currentHeight)
 
     local elapsed = os.time() - _G.SessionStartTime
-    TimerLabel.Text = string.format("Time: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
+    TimerLabel.Text = string.format("Время: %02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60)
 
     if _G.ScriptEnabled and currentHeight > lastY then
         _G.TotalDistance = _G.TotalDistance + (currentHeight - lastY)
