@@ -1,4 +1,4 @@
--- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (ПОЛНЫЙ АВТОКРУГ)
+-- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (Safe Net Edition)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- Глобальные переменные сохранения статистики
@@ -8,7 +8,6 @@ if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
 _G.DiscordWebhookURL = "https://discord.com_" 
 
 local scriptRunning = true
--- АВТОСТАРТ: При входе на новый сервер скрипт сразу включается на полет
 _G.ScriptEnabled = true 
 _G.ClimbSpeed = 50
 _G.MaxHeight = 200000 
@@ -21,27 +20,30 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- Функция отправки уведомлений в Дискорд
+-- Безопасная функция отправки уведомлений (Игнорирует ошибки интернета и DnsResolve)
 local function sendSystemNotify(title, desc, color, fields)
     if _G.DiscordWebhookURL and _G.DiscordWebhookURL ~= "" then
-        local data = {
-            ["embeds"] = {{
-                ["title"] = title,
-                ["description"] = desc,
-                ["color"] = color,
-                ["fields"] = fields or {},
-                ["footer"] = {["text"] = "Legenda32 Angel Dog Farm Tracker"}
-            }}
-        }
-        local json = HttpService:JSONEncode(data)
-        local req = syn and syn.request or http and http.request or request
-        if req then
-            req({Url = _G.DiscordWebhookURL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = json})
-        end
+        -- Используем pcall, чтобы при ошибке интернета скрипт НЕ вылетал
+        pcall(function()
+            local data = {
+                ["embeds"] = {{
+                    ["title"] = title,
+                    ["description"] = desc,
+                    ["color"] = color,
+                    ["fields"] = fields or {},
+                    ["footer"] = {["text"] = "Legenda32 Angel Dog Farm Tracker"}
+                }}
+            }
+            local json = HttpService:JSONEncode(data)
+            local req = syn and syn.request or http and http.request or request
+            if req then
+                req({Url = _G.DiscordWebhookURL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = json})
+            end
+        end)
     end
 end
 
--- Отправка лога о запуске скрипта
+-- Отправка лога о запуске (Теперь абсолютно безопасная)
 sendSystemNotify("🚀 Скрипт успешно перезапущен!", "Legenda32 Hub автоматически загрузился на новом сервере и начал подъем.", 3447003, {
     {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
     {["name"] = "Пройдено серверов:", ["value"] = tostring(_G.TotalRejoins), ["inline"] = true}
@@ -131,7 +133,7 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.Parent = MainFrame
 
--- Переключатель автоматического подъема (Зеленый по умолчанию, так как автостарт)
+-- Переключатель автоматического подъема
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 220, 0, 35)
 ToggleBtn.Position = UDim2.new(0, 20, 0, 50)
@@ -209,7 +211,7 @@ UnloadBtn.Font = Enum.Font.SourceSansBold
 UnloadBtn.TextSize = 14
 UnloadBtn.Parent = MainFrame
 
--- СЕКЦИЯ СТАТИСТИКИ (Заголовок)
+-- СЕКЦИЯ СТАТИСТИКИ
 local StatsTitle = Instance.new("TextLabel")
 StatsTitle.Size = UDim2.new(0, 220, 0, 20)
 StatsTitle.Position = UDim2.new(0, 20, 0, 335)
@@ -219,7 +221,6 @@ StatsTitle.Font = Enum.Font.SourceSansBold
 StatsTitle.TextSize = 13
 StatsTitle.Parent = MainFrame
 
--- Статистика: Высота Y
 local HeightLabel = Instance.new("TextLabel")
 HeightLabel.Size = UDim2.new(0, 220, 0, 20)
 HeightLabel.Position = UDim2.new(0, 20, 0, 360)
@@ -229,7 +230,6 @@ HeightLabel.Font = Enum.Font.SourceSans
 HeightLabel.TextSize = 13
 HeightLabel.Parent = MainFrame
 
--- Статистика: Таймер сессии
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(0, 220, 0, 20)
 TimerLabel.Position = UDim2.new(0, 20, 0, 385)
@@ -239,7 +239,6 @@ TimerLabel.Font = Enum.Font.SourceSans
 TimerLabel.TextSize = 13
 TimerLabel.Parent = MainFrame
 
--- Статистика: Пройденное расстояние
 local DistLabel = Instance.new("TextLabel")
 DistLabel.Size = UDim2.new(0, 220, 0, 20)
 DistLabel.Position = UDim2.new(0, 20, 0, 410)
@@ -249,7 +248,6 @@ DistLabel.Font = Enum.Font.SourceSans
 DistLabel.TextSize = 13
 DistLabel.Parent = MainFrame
 
--- Статистика: Количество серверов
 local ServerLabel = Instance.new("TextLabel")
 ServerLabel.Size = UDim2.new(0, 220, 0, 20)
 ServerLabel.Position = UDim2.new(0, 20, 0, 435)
@@ -259,7 +257,6 @@ ServerLabel.Font = Enum.Font.SourceSans
 ServerLabel.TextSize = 13
 ServerLabel.Parent = MainFrame
 
--- Текстовый статус работы радара
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 25)
 StatusLabel.Position = UDim2.new(0, 20, 0, 465)
@@ -269,7 +266,6 @@ StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
 StatusLabel.Parent = MainFrame
 
--- Обработка ввода скорости
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
@@ -303,13 +299,11 @@ local function doDrop()
 end
 TPBtn.MouseButton1Click:Connect(doDrop)
 
--- Автоматический сброс под карту при первом старте на сервере
 task.spawn(function()
-    task.wait(3) -- Небольшое ожидание прогрузки персонажа
+    task.wait(3)
     doDrop()
 end)
 
--- Ручная выгрузка с отчетом в Discord
 local function unloadScript()
     scriptRunning = false _G.ScriptEnabled = false
     RunService:Set3dRenderingEnabled(true)
@@ -323,7 +317,6 @@ local function unloadScript()
 end
 UnloadBtn.MouseButton1Click:Connect(unloadScript)
 
--- Кнопка ручной проверки вебхука
 TestWebhookBtn.MouseButton1Click:Connect(function()
     if not scriptRunning then return end
     local currentHeight = math.floor(LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position.Y or 0)
@@ -334,7 +327,6 @@ TestWebhookBtn.MouseButton1Click:Connect(function()
     StatusLabel.Text = "Статус: Тест отправлен в Discord!"
 end)
 
--- Функция авто-реконнекта с поддержкой Автозапуска в Delta Client
 local function reconnect()
     if not scriptRunning then return end
     _G.TotalRejoins = _G.TotalRejoins + 1
@@ -346,20 +338,13 @@ local function reconnect()
         {["name"] = "Всего пролетено:", ["value"] = tostring(math.floor(_G.TotalDistance)) .. " studs", ["inline"] = false}
     })
     
-    -- Функция КЬЮ ТЕЛЕПОРТ: Заставляет Delta Client автоматически выполнить код после смены сервера
-    local launchCode = [[loadstring(game:HttpGet("https://githubusercontent.com"))()]]
-    if queue_on_teleport then
-        queue_on_teleport(launchCode)
-    elseif syn and syn.queue_on_teleport then
-        syn.queue_on_teleport(launchCode)
-    end
+    local launchCode = [[loadstring(game:HttpGet("https://githubusercontent.com" .. tostring(math.random(1,9999))))()]]
+    if queue_on_teleport then queue_on_teleport(launchCode)
+    elseif syn and syn.queue_on_teleport then syn.queue_on_teleport(launchCode) end
     
     task.wait(1.5)
-    if #Players:GetPlayers() <= 1 then 
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-    else 
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) 
-    end
+    if #Players:GetPlayers() <= 1 then TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    else TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end
 end
 
 local function findStairs()
@@ -377,7 +362,6 @@ local function findStairs()
     return nil
 end
 
--- Рабочий поток
 local connection
 local lastY = 0
 
@@ -408,7 +392,6 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
         local foundObject = findStairs()
 
         if foundObject then
-            -- Anti-Fall платформа под ноги
             local bPart = Instance.new("Part")
             bPart.Size = Vector3.new(20, 1, 20) bPart.Transparency = 1 bPart.Anchored = true bPart.Parent = workspace
             
@@ -422,7 +405,6 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. foundObject.Name
             
-            -- Важнейшее оповещение о находке лестницы!
             sendSystemNotify("@everyone 🚨 ОБНАРУЖЕН ОБЪЕКТ НА ЛЕСТНИЦЕ! 🚨", "Скрипт зафиксировал новые текстуры и остановил подъем. Срочно зайди в игру!", 65280, {
                 {["name"] = "Игрок:", ["value"] = LocalPlayer.Name, ["inline"] = true},
                 {["name"] = "Высота обнаружения Y:", ["value"] = tostring(currentHeight) .. " studs", ["inline"] = true},
