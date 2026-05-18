@@ -1,7 +1,6 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (100% Fixed Code)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (Fixed UI Layout)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Все настройки строго выключены при старте
 local scriptRunning = true
 _G.ScriptEnabled = false 
 _G.ClimbSpeed = 50
@@ -11,15 +10,43 @@ _G.FpsBoostEnabled = false
 if not _G.TotalRejoins then _G.TotalRejoins = 0 end
 if not _G.TotalDistance then _G.TotalDistance = 0 end
 if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
-_G.DiscordWebhookURL = "https://discord.com_"
+
+-- Вшитый вебхук по умолчанию
+if not _G.DiscordWebhookURL or _G.DiscordWebhookURL == "" then
+    _G.DiscordWebhookURL = "https://discord.com_"
+end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- Защита от вылета (Anti-AFK)
+-- Изолированная функция отправки в Discord
+local function sendSystemNotify(title, desc, color, fields)
+    if not _G.DiscordWebhookURL or _G.DiscordWebhookURL == "" then return end
+    task.spawn(function()
+        pcall(function()
+            local data = {
+                ["embeds"] = {{
+                    ["title"] = title,
+                    ["description"] = desc,
+                    ["color"] = color,
+                    ["fields"] = fields or {},
+                    ["footer"] = {["text"] = "Legenda32 Angel Dog Farm Tracker"}
+                }}
+            }
+            local json = HttpService:JSONEncode(data)
+            local req = syn and syn.request or http and http.request or request
+            if req then
+                req({Url = _G.DiscordWebhookURL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = json})
+            end
+        end)
+    end)
+end
+
+-- Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 local afkConnection
 afkConnection = LocalPlayer.Idled:Connect(function()
@@ -33,7 +60,7 @@ afkConnection = LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- Полная очистка старых копий меню из PlayerGui
+-- Очистка старых GUI из памяти игры
 local pGui = LocalPlayer:WaitForChild("PlayerGui")
 for _, old in ipairs(pGui:GetChildren()) do
     if string.find(old.Name, "Legenda32Hub") or string.find(old.Name, "AngelDog") then
@@ -124,7 +151,7 @@ BtnTab3.Font = Enum.Font.SourceSansBold
 BtnTab3.TextSize = 12
 BtnTab3.Parent = TabBar
 
--- Контейнеры страниц для вкладок
+-- Контейнеры страниц вкладок
 local PageFarm = Instance.new("Frame")
 PageFarm.Size = UDim2.new(1, 0, 1, -35)
 PageFarm.Position = UDim2.new(0, 0, 0, 35)
@@ -132,7 +159,7 @@ PageFarm.BackgroundTransparency = 1
 PageFarm.Visible = true
 PageFarm.Parent = MainFrame
 
-local PageSettings = Instance.new("Frame")
+local PageSettings = Instance.new("Frame") -- Сделали обычным Frame (БЕЗ скролла), чтобы ничего не пряталось!
 PageSettings.Size = UDim2.new(1, 0, 1, -35)
 PageSettings.Position = UDim2.new(0, 0, 0, 35)
 PageSettings.BackgroundTransparency = 1
@@ -199,40 +226,62 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 30)
 StatusLabel.Position = UDim2.new(0, 20, 0, 150)
 StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.Text = "Статус: Ожидание игрока..."
+StatusLabel.Text = "Статус: Нажми ТП под карту"
 StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
 StatusLabel.Parent = PageFarm
 
--- Вкладка: НАСТРОЙКИ (Элементы)
+-- Вкладка: НАСТРОЙКИ (Элементы жестко выстроены на виду)
 local FpsBtn = Instance.new("TextButton")
-FpsBtn.Size = UDim2.new(0, 220, 0, 35)
-FpsBtn.Position = UDim2.new(0, 20, 0, 15)
+FpsBtn.Size = UDim2.new(0, 220, 0, 30)
+FpsBtn.Position = UDim2.new(0, 20, 0, 10)
 FpsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 FpsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 FpsBtn.Text = "Boost FPS (Черный Экран): ВЫКЛ"
 FpsBtn.Font = Enum.Font.SourceSansBold
-FpsBtn.TextSize = 12
+FpsBtn.TextSize = 11
 FpsBtn.Parent = PageSettings
 
+local WebhookInput = Instance.new("TextBox")
+WebhookInput.Size = UDim2.new(0, 220, 0, 30)
+WebhookInput.Position = UDim2.new(0, 20, 0, 45)
+WebhookInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+WebhookInput.TextColor3 = Color3.fromRGB(150, 150, 255)
+WebhookInput.PlaceholderText = "Ссылка на твой Discord Webhook"
+WebhookInput.Text = _G.DiscordWebhookURL or ""
+WebhookInput.Font = Enum.Font.SourceSans
+WebhookInput.TextSize = 11
+WebhookInput.Parent = PageSettings
+
+-- КНОПКА ПРОВЕРКИ (Сдвинута выше, теперь 100% на виду)
+local TestWebhookBtn = Instance.new("TextButton")
+TestWebhookBtn.Size = UDim2.new(0, 220, 0, 30)
+TestWebhookBtn.Position = UDim2.new(0, 20, 0, 80)
+TestWebhookBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+TestWebhookBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TestWebhookBtn.Text = "ПРОВЕРИТЬ СВЯЗЬ ДИСКОРД"
+TestWebhookBtn.Font = Enum.Font.SourceSansBold
+TestWebhookBtn.TextSize = 11
+TestWebhookBtn.Parent = PageSettings
+
 local CopyWebhookBtn = Instance.new("TextButton")
-CopyWebhookBtn.Size = UDim2.new(0, 220, 0, 35)
-CopyWebhookBtn.Position = UDim2.new(0, 20, 0, 60)
+CopyWebhookBtn.Size = UDim2.new(0, 220, 0, 30)
+CopyWebhookBtn.Position = UDim2.new(0, 20, 0, 115)
 CopyWebhookBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 80)
 CopyWebhookBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CopyWebhookBtn.Text = "СКОПИРОВАТЬ ВЕБХУК"
 CopyWebhookBtn.Font = Enum.Font.SourceSansBold
-CopyWebhookBtn.TextSize = 13
+CopyWebhookBtn.TextSize = 11
 CopyWebhookBtn.Parent = PageSettings
 
 local UnloadBtn = Instance.new("TextButton")
-UnloadBtn.Size = UDim2.new(0, 220, 0, 35)
-UnloadBtn.Position = UDim2.new(0, 20, 0, 105)
+UnloadBtn.Size = UDim2.new(0, 220, 0, 30)
+UnloadBtn.Position = UDim2.new(0, 20, 0, 150)
 UnloadBtn.BackgroundColor3 = Color3.fromRGB(90, 10, 10)
 UnloadBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
 UnloadBtn.Text = "ФУЛ ВЫГРУЗКА СКРИПТА"
 UnloadBtn.Font = Enum.Font.SourceSansBold
-UnloadBtn.TextSize = 13
+UnloadBtn.TextSize = 12
 UnloadBtn.Parent = PageSettings
 
 -- Вкладка: ИНФО (Элементы)
@@ -287,13 +336,15 @@ GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
 GuideLabel.Parent = PageInfo
 
--- Логика управления элементами
+-- --- ЛОГИКА ФУНКЦИОНАЛА ---
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
     if num then _G.ClimbSpeed = num SpeedInput.Text = "Скорость: " .. tostring(num)
     else SpeedInput.Text = "Скорость: " .. tostring(_G.ClimbSpeed) end
 end)
+
+WebhookInput.FocusLost:Connect(function() _G.DiscordWebhookURL = WebhookInput.Text end)
 
 CopyWebhookBtn.MouseButton1Click:Connect(function()
     if not scriptRunning then return end
@@ -302,7 +353,7 @@ CopyWebhookBtn.MouseButton1Click:Connect(function()
         cb(_G.DiscordWebhookURL)
         StatusLabel.Text = "Статус: Вебхук скопирован!"
     else
-        StatusLabel.Text = "Статус: Буфер обмена заблокирован читом"
+        StatusLabel.Text = "Статус: Ошибка буфера"
     end
 end)
 
@@ -331,6 +382,16 @@ local function doDrop()
 end
 DropBtn.MouseButton1Click:Connect(doDrop)
 
+TestWebhookBtn.MouseButton1Click:Connect(function()
+    if not scriptRunning then return end
+    local currentHeight = math.floor(LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position.Y or 0)
+    sendSystemNotify("🔔 Ручной тест связи", "Твой вебхук в хабе настроен правильно и готов к работе.", 3447003, {
+        {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
+        {["name"] = "Высота Y:", ["value"] = tostring(currentHeight), ["inline"] = true}
+    })
+    StatusLabel.Text = "Статус: Тест отправлен!"
+end)
+
 local function unloadScript()
     scriptRunning = false _G.ScriptEnabled = false
     RunService:Set3dRenderingEnabled(true)
@@ -344,6 +405,11 @@ local function reconnect()
     if not scriptRunning then return end
     _G.TotalRejoins = _G.TotalRejoins + 1
     
+    sendSystemNotify("🔄 Смена сервера", "Достигнут лимит 200к. Скрипт меняет сервер, чтобы обойти невидимые бортики.", 16753920, {
+        {["name"] = "Кругов пройдено:", ["value"] = tostring(_G.TotalRejoins), ["inline"] = true},
+        {["name"] = "Всего пролетено:", ["value"] = tostring(math.floor(_G.TotalDistance)) .. " studs", ["inline"] = false}
+    })
+
     local launchCode = [[loadstring(game:HttpGet("https://githubusercontent.com" .. tostring(math.random(1,99999))))()]]
     local qot = queue_on_teleport or (syn and syn.queue_on_teleport)
     if qot then pcall(function() qot(launchCode) end) end
@@ -377,7 +443,7 @@ local function findStairsPart()
     return foundPart
 end
 
--- Рабочий поток
+-- Основной цикл
 local connection
 local lastY = 0
 connection = RunService.Heartbeat:Connect(function(deltaTime)
@@ -415,6 +481,12 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
             ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. tostring(targetPart.Parent.Name)
+            
+            sendSystemNotify("@everyone 🚨 НАЙДЕН ОБЪЕКТ НА ЛЕСТНИЦЕ! 🚨", "Скрипт успешно зафиксировал новые текстуры и остановил подъем. Срочно зайди в игру!", 65280, {
+                {["name"] = "Никнейм:", ["value"] = LocalPlayer.Name, ["inline"] = true},
+                {["name"] = "Высота Y:", ["value"] = tostring(currentHeight) .. " studs", ["inline"] = true},
+                {["name"] = "Имя модели:", ["value"] = tostring(targetPart.Parent.Name), ["inline"] = false}
+            })
         else
             hrp.Velocity = Vector3.new(0, 0, 0)
             hrp.Position = hrp.Position + Vector3.new(0, _G.ClimbSpeed * deltaTime, 0)
