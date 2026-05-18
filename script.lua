@@ -1,4 +1,4 @@
--- Legenda32Hub [Pet Simulator 99] | Delta Client (NEW UI FIX)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (Exact Webhook Fix)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- Все автоматические функции полностью вырезаны! Запуск строго руками.
@@ -11,6 +11,8 @@ _G.FpsBoostEnabled = false
 if not _G.TotalRejoins then _G.TotalRejoins = 0 end
 if not _G.TotalDistance then _G.TotalDistance = 0 end
 if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
+
+-- ТВОЙ ТОЧНЫЙ ВЕБХУК ВШИТ СЮДА:
 _G.DiscordWebhookURL = "https://discord.com_" 
 
 local Players = game:GetService("Players")
@@ -226,7 +228,7 @@ DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 DropBtn.Text = "Прыгнуть под карту"
 DropBtn.Font = Enum.Font.SourceSansBold
 DropBtn.TextSize = 14
-DropBtn.Parent = PageFarm
+DropBtn.Parent = DropBtn.Parent and PageFarm
 
 local SpeedInput = Instance.new("TextBox")
 SpeedInput.Size = UDim2.new(0, 220, 0, 35)
@@ -242,7 +244,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 30)
 StatusLabel.Position = UDim2.new(0, 20, 0, 150)
 StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.Text = "Статус: Ожидание игрока..."
+StatusLabel.Text = "Статус: Нажми ТП под карту"
 StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
 StatusLabel.Parent = PageFarm
