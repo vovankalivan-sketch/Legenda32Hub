@@ -1,13 +1,13 @@
--- Legenda32Hub [Pet Simulator 99 - Angel Dog Farm] | Delta Client (Tabbed UI)
+-- Legenda32Hub [Pet Simulator 99] | Delta Client (Manual & Tabbed)
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Статистика в глобальной памяти
+-- Статистика в памяти
 if not _G.TotalRejoins then _G.TotalRejoins = 0 end
 if not _G.TotalDistance then _G.TotalDistance = 0 end
 if not _G.SessionStartTime then _G.SessionStartTime = os.time() end
 
 local scriptRunning = true
-_G.ScriptEnabled = true
+_G.ScriptEnabled = false -- ВЫКЛЮЧЕНО ПО УМОЛЧАНИЮ (Ручной запуск)
 _G.ClimbSpeed = 50
 _G.MaxHeight = 200000
 _G.FpsBoostEnabled = false
@@ -56,7 +56,7 @@ OpenCloseBtn.Parent = ScreenGui
 
 -- Главное компактное окно меню
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 260, 0, 320) -- Размер сильно уменьшен благодаря вкладкам
+MainFrame.Size = UDim2.new(0, 260, 0, 320)
 MainFrame.Position = UDim2.new(0, 10, 0, 55)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 1
@@ -102,12 +102,12 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Title.TextColor3 = Color3.fromRGB(0, 255, 150)
-Title.Text = "Legenda32 Hub [PRO]"
+Title.Text = "Legenda32 Hub [Tabs]"
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 15
 Title.Parent = MainFrame
 
--- --- СОЗДАНИЕ ПАНЕЛИ ВКЛАДОК ---
+-- --- СОЗДАНИЕ КНОПОК ВКЛАДОК ---
 local TabFrame = Instance.new("Frame")
 TabFrame.Size = UDim2.new(1, 0, 0, 30)
 TabFrame.Position = UDim2.new(0, 0, 0, 35)
@@ -142,7 +142,7 @@ Tab3Btn.Text = "Инфо / Стата"
 Tab3Btn.Font = Enum.Font.SourceSansBold
 Tab3Btn.Parent = TabFrame
 
--- --- СОЗДАНИЕ КОНТЕЙНЕРОВ ДЛЯ ВКЛАДОК ---
+-- --- КОНТЕЙНЕРЫ ДЛЯ ВКЛАДОК ---
 local FarmTab = Instance.new("Frame")
 FarmTab.Size = UDim2.new(1, 0, 1, -65)
 FarmTab.Position = UDim2.new(0, 0, 0, 65)
@@ -157,7 +157,7 @@ SettingsTab.BackgroundTransparency = 1
 SettingsTab.Visible = false
 SettingsTab.Parent = MainFrame
 
-local InfoTab = Instance.new("ScrollingFrame") -- Скролл-панель для статы и гайда
+local InfoTab = Instance.new("ScrollingFrame")
 InfoTab.Size = UDim2.new(1, 0, 1, -65)
 InfoTab.Position = UDim2.new(0, 0, 0, 65)
 InfoTab.BackgroundTransparency = 1
@@ -186,13 +186,13 @@ Tab1Btn.MouseButton1Click:Connect(function() switchTab(1) end)
 Tab2Btn.MouseButton1Click:Connect(function() switchTab(2) end)
 Tab3Btn.MouseButton1Click:Connect(function() switchTab(3) end)
 
--- --- ЭЛЕМЕНТЫ ВКЛАДКИ «ФАРМ» ---
+-- --- ВКЛАДКА «ФАРМ» ---
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 220, 0, 40)
 ToggleBtn.Position = UDim2.new(0, 20, 0, 20)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 130, 30)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30) -- По умолчанию КРАСНАЯ (Выкл)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Text = "Авто-Подъем: ВКЛ"
+ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 14
 ToggleBtn.Parent = FarmTab
@@ -221,12 +221,12 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 220, 0, 30)
 StatusLabel.Position = UDim2.new(0, 20, 0, 185)
 StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.Text = "Статус: Авто-подъем запущен"
+StatusLabel.Text = "Статус: Ожидание действий"
 StatusLabel.Font = Enum.Font.SourceSansItalic
 StatusLabel.TextSize = 13
 StatusLabel.Parent = FarmTab
 
--- --- ЭЛЕМЕНТЫ ВКЛАДКИ «НАСТРОЙКИ» ---
+-- --- ВКЛАДКА «НАСТРОЙКИ» ---
 local FpsBtn = Instance.new("TextButton")
 FpsBtn.Size = UDim2.new(0, 220, 0, 40)
 FpsBtn.Position = UDim2.new(0, 20, 0, 20)
@@ -247,7 +247,7 @@ UnloadBtn.Font = Enum.Font.SourceSansBold
 UnloadBtn.TextSize = 14
 UnloadBtn.Parent = SettingsTab
 
--- --- ЭЛЕМЕНТЫ ВКЛАДКИ «ИНФО / СТАТА» ---
+-- --- ВКЛАДКА «ИНФО / СТАТА» ---
 local HeightLabel = Instance.new("TextLabel")
 HeightLabel.Size = UDim2.new(0, 220, 0, 20)
 HeightLabel.Position = UDim2.new(0, 20, 0, 10)
@@ -288,7 +288,6 @@ ServerLabel.TextSize = 13
 ServerLabel.TextXAlignment = Enum.TextXAlignment.Left
 ServerLabel.Parent = InfoTab
 
--- Текстовый Гайд и данные о Хуге
 local GuideLabel = Instance.new("TextLabel")
 GuideLabel.Size = UDim2.new(0, 220, 0, 180)
 GuideLabel.Position = UDim2.new(0, 20, 0, 115)
@@ -300,7 +299,7 @@ GuideLabel.TextYAlignment = Enum.TextYAlignment.Top
 GuideLabel.TextXAlignment = Enum.TextXAlignment.Left
 GuideLabel.Parent = InfoTab
 
--- --- ЛОГИКА ФУНКЦИОНАЛА СКРИПТА ---
+-- --- ЛОГИКА ---
 SpeedInput.FocusLost:Connect(function()
     if not scriptRunning then return end
     local num = tonumber(SpeedInput.Text:match("%d+"))
@@ -313,6 +312,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     _G.ScriptEnabled = not _G.ScriptEnabled
     ToggleBtn.BackgroundColor3 = _G.ScriptEnabled and Color3.fromRGB(30, 130, 30) or Color3.fromRGB(150, 30, 30)
     ToggleBtn.Text = _G.ScriptEnabled and "Авто-Подъем: ВКЛ" or "Авто-Подъем: ВЫКЛ"
+    StatusLabel.Text = _G.ScriptEnabled and "Статус: Полет вверх..." or "Статус: Полет остановлен"
 end)
 
 FpsBtn.MouseButton1Click:Connect(function()
@@ -331,11 +331,6 @@ local function doDrop()
     end
 end
 TPBtn.MouseButton1Click:Connect(doDrop)
-
-task.spawn(function()
-    task.wait(2.5)
-    doDrop()
-end)
 
 local function unloadScript()
     scriptRunning = false 
@@ -439,7 +434,6 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
             ToggleBtn.Text = "Авто-Подъем: ВЫКЛ"
             StatusLabel.Text = "Найдено: " .. tostring(targetPart.Parent.Name)
         else
-            StatusLabel.Text = "Статус: Полет вверх..."
             hrp.CFrame = hrp.CFrame * CFrame.new(0, _G.ClimbSpeed * deltaTime, 0)
             hrp.Velocity = Vector3.new(0, 0, 0)
         end
