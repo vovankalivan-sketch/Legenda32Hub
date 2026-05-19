@@ -1,4 +1,4 @@
--- ForestHub Mobile v212 | Без анимаций, без MeshContentProvider ошибок
+-- ForestHub Mobile v213 | Без ошибок родителя и MeshContentProvider
 -- КЛЮЧ: Forest
 
 local Players = game:GetService("Players")
@@ -8,303 +8,299 @@ local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- ========== КЛЮЧ ==========
+-- === КЛЮЧ ===
 local CORRECT_KEY = "Forest"
 local keyVerified = false
 
-local function requestKey()
-    local keyGui = Instance.new("ScreenGui")
-    keyGui.Name = "KeySystem"
-    keyGui.Parent = CoreGui
+local function askKey()
+    local screen = Instance.new("ScreenGui")
+    screen.Name = "KeyWindow"
+    screen.ResetOnSpawn = false
+    pcall(function() screen.Parent = CoreGui end)
+    if not screen.Parent then return end
     
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 260, 0, 150)
-    frame.Position = UDim2.new(0.5, -130, 0.5, -75)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    frame.Size = UDim2.new(0, 250, 0, 130)
+    frame.Position = UDim2.new(0.5, -125, 0.5, -65)
+    frame.BackgroundColor3 = Color3.fromRGB(30,30,45)
     frame.BorderSize = 0
-    frame.Parent = keyGui
+    frame.Parent = screen
     
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Size = UDim2.new(1,0,0,30)
     title.Text = "Введите ключ"
-    title.BackgroundColor3 = Color3.fromRGB(40, 40, 65)
-    title.TextColor3 = Color3.fromRGB(255, 200, 100)
+    title.BackgroundColor3 = Color3.fromRGB(50,50,70)
+    title.TextColor3 = Color3.fromRGB(255,200,100)
     title.Font = Enum.Font.GothamBold
     title.TextSize = 14
     title.Parent = frame
     
-    local textBox = Instance.new("TextBox")
-    textBox.Size = UDim2.new(0.8, 0, 0, 30)
-    textBox.Position = UDim2.new(0.1, 0, 0.35, 0)
-    textBox.PlaceholderText = "Ключ..."
-    textBox.Text = ""
-    textBox.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
-    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textBox.Font = Enum.Font.Gotham
-    textBox.TextSize = 14
-    textBox.Parent = frame
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.8,0,0,30)
+    box.Position = UDim2.new(0.1,0,0.4,0)
+    box.PlaceholderText = "Ключ"
+    box.BackgroundColor3 = Color3.fromRGB(50,50,70)
+    box.TextColor3 = Color3.fromRGB(255,255,255)
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 14
+    box.Parent = frame
     
-    local enterBtn = Instance.new("TextButton")
-    enterBtn.Size = UDim2.new(0.4, 0, 0, 30)
-    enterBtn.Position = UDim2.new(0.3, 0, 0.7, 0)
-    enterBtn.Text = "Войти"
-    enterBtn.BackgroundColor3 = Color3.fromRGB(80, 150, 80)
-    enterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    enterBtn.Font = Enum.Font.GothamBold
-    enterBtn.TextSize = 14
-    enterBtn.BorderSize = 0
-    enterBtn.Parent = frame
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.4,0,0,30)
+    btn.Position = UDim2.new(0.3,0,0.75,0)
+    btn.Text = "OK"
+    btn.BackgroundColor3 = Color3.fromRGB(80,150,80)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    btn.BorderSize = 0
+    btn.Parent = frame
     
     local msg = Instance.new("TextLabel")
-    msg.Size = UDim2.new(1, 0, 0, 20)
-    msg.Position = UDim2.new(0, 0, 1, -20)
+    msg.Size = UDim2.new(1,0,0,20)
+    msg.Position = UDim2.new(0,0,1,-20)
     msg.Text = ""
     msg.BackgroundTransparency = 1
-    msg.TextColor3 = Color3.fromRGB(255, 100, 100)
+    msg.TextColor3 = Color3.fromRGB(255,100,100)
     msg.Font = Enum.Font.Gotham
     msg.TextSize = 11
     msg.Parent = frame
     
-    enterBtn.MouseButton1Click:Connect(function()
-        if textBox.Text == CORRECT_KEY then
+    btn.MouseButton1Click:Connect(function()
+        if box.Text == CORRECT_KEY then
             keyVerified = true
-            msg.Text = "✅"
-            wait(0.3)
-            keyGui:Destroy()
+            screen:Destroy()
         else
-            msg.Text = "❌ Неверно"
-            textBox.Text = ""
+            msg.Text = "Неверно"
+            box.Text = ""
         end
     end)
     
     repeat wait() until keyVerified
 end
 
-requestKey()
+askKey()
 
--- ========== GUI (без анимаций, без эффектов) ==========
+-- === ПРОСТОЙ GUI (без ошибок родителя) ===
 local gui = Instance.new("ScreenGui")
-gui.Name = "ForestHub"
+gui.Name = "FH"
 gui.ResetOnSpawn = false
-gui.Parent = CoreGui
+pcall(function() gui.Parent = CoreGui end)
+if not gui.Parent then
+    pcall(function() gui.Parent = game:GetService("Players").LocalPlayer.PlayerGui end)
+end
+if not gui.Parent then return end
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-mainFrame.BorderSize = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = gui
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 280, 0, 350)
+main.Position = UDim2.new(0.5, -140, 0.5, -175)
+main.BackgroundColor3 = Color3.fromRGB(25,25,40)
+main.BorderSize = 0
+main.Active = true
+main.Draggable = true
+main.Parent = gui
 
-local titleBar = Instance.new("TextLabel")
-titleBar.Size = UDim2.new(1, 0, 0, 35)
-titleBar.Text = "🌲 ForestHub | Key: Forest"
-titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
-titleBar.TextColor3 = Color3.fromRGB(255, 200, 100)
-titleBar.Font = Enum.Font.GothamBold
-titleBar.TextSize = 13
-titleBar.Parent = mainFrame
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "ForestHub (Redz стиль)"
+title.BackgroundColor3 = Color3.fromRGB(40,40,60)
+title.TextColor3 = Color3.fromRGB(255,180,80)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 12
+title.Parent = main
 
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 1, 0)
-closeBtn.Position = UDim2.new(1, -30, 0, 0)
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-closeBtn.BackgroundTransparency = 1
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 16
-closeBtn.Parent = titleBar
-closeBtn.MouseButton1Click:Connect(function()
-    gui:Destroy()
-end)
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,1,0)
+close.Position = UDim2.new(1,-30,0,0)
+close.Text = "X"
+close.TextColor3 = Color3.fromRGB(255,100,100)
+close.BackgroundTransparency = 1
+close.Font = Enum.Font.GothamBold
+close.TextSize = 16
+close.Parent = title
+close.MouseButton1Click:Connect(function() gui:Destroy() end)
 
 local tabBar = Instance.new("Frame")
-tabBar.Size = UDim2.new(1, 0, 0, 30)
-tabBar.Position = UDim2.new(0, 0, 0, 35)
-tabBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+tabBar.Size = UDim2.new(1,0,0,30)
+tabBar.Position = UDim2.new(0,0,0,30)
+tabBar.BackgroundColor3 = Color3.fromRGB(30,30,50)
 tabBar.BorderSize = 0
-tabBar.Parent = mainFrame
+tabBar.Parent = main
 
-local contentArea = Instance.new("Frame")
-contentArea.Size = UDim2.new(1, 0, 1, -65)
-contentArea.Position = UDim2.new(0, 0, 0, 65)
-contentArea.BackgroundColor3 = Color3.fromRGB(22, 22, 35)
-contentArea.BorderSize = 0
-contentArea.Parent = mainFrame
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1,0,1,-60)
+content.Position = UDim2.new(0,0,0,60)
+content.BackgroundColor3 = Color3.fromRGB(20,20,35)
+content.BorderSize = 0
+content.Parent = main
 
 local tabs = {}
 local currentTab = nil
 
-local function createTab(name, icon)
+local function addTab(name, icon)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 70, 1, 0)
+    btn.Size = UDim2.new(0, 65, 1, 0)
     btn.Text = icon .. " " .. name
-    btn.TextColor3 = Color3.fromRGB(200, 200, 220)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    btn.TextColor3 = Color3.fromRGB(200,200,220)
+    btn.BackgroundColor3 = Color3.fromRGB(35,35,55)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 11
+    btn.TextSize = 10
     btn.BorderSize = 0
     btn.Parent = tabBar
     
-    local content = Instance.new("ScrollingFrame")
-    content.Size = UDim2.new(1, 0, 1, 0)
-    content.BackgroundTransparency = 1
-    content.ScrollBarThickness = 3
-    content.Parent = contentArea
-    content.Visible = false
+    local panel = Instance.new("ScrollingFrame")
+    panel.Size = UDim2.new(1,0,1,0)
+    panel.BackgroundTransparency = 1
+    panel.ScrollBarThickness = 2
+    panel.Parent = content
+    panel.Visible = false
     
-    local list = Instance.new("UIListLayout")
-    list.Padding = UDim.new(0, 5)
-    list.SortOrder = Enum.SortOrder.LayoutOrder
-    list.Parent = content
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = panel
     
     btn.MouseButton1Click:Connect(function()
         for _, v in pairs(tabs) do
-            v.content.Visible = false
-            v.btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+            v.panel.Visible = false
+            v.btn.BackgroundColor3 = Color3.fromRGB(35,35,55)
         end
-        content.Visible = true
-        btn.BackgroundColor3 = Color3.fromRGB(80, 100, 140)
+        panel.Visible = true
+        btn.BackgroundColor3 = Color3.fromRGB(80,100,140)
         currentTab = name
     end)
     
-    tabs[name] = {btn = btn, content = content, list = list}
+    tabs[name] = {btn = btn, panel = panel, layout = layout}
     if not currentTab then btn.MouseButton1Click:Fire() end
-    return content
+    return panel
 end
 
-local function addToggle(parent, text, callback)
+local function toggle(parent, text, callback)
     local f = Instance.new("Frame")
     f.Size = UDim2.new(1, -10, 0, 32)
     f.Position = UDim2.new(0, 5, 0, 0)
-    f.BackgroundColor3 = Color3.fromRGB(30, 32, 45)
+    f.BackgroundColor3 = Color3.fromRGB(35,37,50)
     f.BorderSize = 0
     f.Parent = parent
     
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -50, 1, 0)
-    label.Text = text
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(220, 220, 240)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 12
-    label.Parent = f
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, -50, 1, 0)
+    l.Text = text
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.BackgroundTransparency = 1
+    l.TextColor3 = Color3.fromRGB(220,220,240)
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 11
+    l.Parent = f
     
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 40, 0, 22)
-    btn.Position = UDim2.new(1, -45, 0.5, -11)
-    btn.BackgroundColor3 = Color3.fromRGB(80, 80, 110)
-    btn.Text = ""
-    btn.BorderSize = 0
-    btn.Parent = f
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(0, 40, 0, 22)
+    b.Position = UDim2.new(1, -45, 0.5, -11)
+    b.BackgroundColor3 = Color3.fromRGB(80,80,110)
+    b.Text = ""
+    b.BorderSize = 0
+    b.Parent = f
     
     local state = false
-    btn.MouseButton1Click:Connect(function()
+    b.MouseButton1Click:Connect(function()
         state = not state
-        btn.BackgroundColor3 = state and Color3.fromRGB(70, 180, 70) or Color3.fromRGB(80, 80, 110)
+        b.BackgroundColor3 = state and Color3.fromRGB(70,180,70) or Color3.fromRGB(80,80,110)
         if callback then callback(state) end
     end)
 end
 
-local function addSlider(parent, text, min, max, default, callback)
+local function slider(parent, text, minVal, maxVal, defaultVal, callback)
     local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -10, 0, 60)
+    f.Size = UDim2.new(1, -10, 0, 55)
     f.Position = UDim2.new(0, 5, 0, 0)
-    f.BackgroundColor3 = Color3.fromRGB(30, 32, 45)
+    f.BackgroundColor3 = Color3.fromRGB(35,37,50)
     f.BorderSize = 0
     f.Parent = parent
     
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.Text = text .. ": " .. tostring(default)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(220, 220, 240)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 11
-    label.Parent = f
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1,0,0,18)
+    l.Text = text .. ": " .. tostring(defaultVal)
+    l.BackgroundTransparency = 1
+    l.TextColor3 = Color3.fromRGB(220,220,240)
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 11
+    l.Parent = f
     
-    local sliderBg = Instance.new("TextButton")
-    sliderBg.Size = UDim2.new(1, -20, 0, 15)
-    sliderBg.Position = UDim2.new(0, 10, 0, 35)
-    sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    sliderBg.Text = ""
-    sliderBg.BorderSize = 0
-    sliderBg.Parent = f
+    local bg = Instance.new("TextButton")
+    bg.Size = UDim2.new(1, -20, 0, 14)
+    bg.Position = UDim2.new(0, 10, 0, 32)
+    bg.BackgroundColor3 = Color3.fromRGB(55,55,75)
+    bg.Text = ""
+    bg.BorderSize = 0
+    bg.Parent = f
     
     local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(100, 160, 230)
+    fill.Size = UDim2.new((defaultVal-minVal)/(maxVal-minVal), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(100,160,230)
     fill.BorderSize = 0
-    fill.Parent = sliderBg
+    fill.Parent = bg
     
-    local value = default
-    local dragging = false
+    local val = defaultVal
+    local drag = false
     
-    sliderBg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-        end
+    bg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then drag = true end
     end)
-    sliderBg.InputEnded:Connect(function()
-        dragging = false
-    end)
-    
+    bg.InputEnded:Connect(function() drag = false end)
     UserInputService.TouchMoved:Connect(function(input)
-        if dragging and sliderBg and sliderBg.AbsoluteSize.X > 0 then
-            local percent = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
-            value = math.floor(min + (max - min) * percent + 0.5)
-            fill.Size = UDim2.new((value-min)/(max-min), 0, 1, 0)
-            label.Text = text .. ": " .. tostring(value)
-            if callback then callback(value) end
+        if drag and bg and bg.AbsoluteSize.X > 0 then
+            local percent = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
+            val = math.floor(minVal + (maxVal - minVal) * percent + 0.5)
+            fill.Size = UDim2.new((val-minVal)/(maxVal-minVal), 0, 1, 0)
+            l.Text = text .. ": " .. tostring(val)
+            if callback then callback(val) end
         end
     end)
 end
 
-local function addDropdown(parent, text, options, callback)
+local function dropdown(parent, text, options, callback)
     local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -10, 0, 40)
+    f.Size = UDim2.new(1, -10, 0, 38)
     f.Position = UDim2.new(0, 5, 0, 0)
-    f.BackgroundColor3 = Color3.fromRGB(30, 32, 45)
+    f.BackgroundColor3 = Color3.fromRGB(35,37,50)
     f.BorderSize = 0
     f.Parent = parent
     
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.45, 0, 1, 0)
-    label.Text = text
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(220, 220, 240)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 11
-    label.Parent = f
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(0.45, 0, 1, 0)
+    l.Text = text
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.BackgroundTransparency = 1
+    l.TextColor3 = Color3.fromRGB(220,220,240)
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 10
+    l.Parent = f
     
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.5, -5, 0.7, 0)
     btn.Position = UDim2.new(0.5, 5, 0.15, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(55, 55, 80)
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,85)
     btn.Text = options[1]
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Font = Enum.Font.Gotham
-    btn.TextSize = 11
+    btn.TextSize = 10
     btn.BorderSize = 0
     btn.Parent = f
     
     local current = options[1]
     btn.MouseButton1Click:Connect(function()
         local list = Instance.new("Frame")
-        list.Size = UDim2.new(0.5, -5, 0, #options * 26)
+        list.Size = UDim2.new(0.5, -5, 0, #options * 24)
         list.Position = UDim2.new(0.5, 5, 1, 0)
-        list.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+        list.BackgroundColor3 = Color3.fromRGB(50,50,70)
         list.BorderSize = 0
         list.Parent = f
         for i, opt in ipairs(options) do
             local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, 0, 0, 26)
+            optBtn.Size = UDim2.new(1, 0, 0, 24)
             optBtn.Text = opt
-            optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 75)
-            optBtn.TextColor3 = Color3.fromRGB(240, 240, 255)
+            optBtn.BackgroundColor3 = Color3.fromRGB(55,55,80)
+            optBtn.TextColor3 = Color3.fromRGB(240,240,255)
             optBtn.Font = Enum.Font.Gotham
             optBtn.TextSize = 10
             optBtn.BorderSize = 0
@@ -319,22 +315,22 @@ local function addDropdown(parent, text, options, callback)
     end)
 end
 
--- ========== НАСТРОЙКИ И ФУНКЦИИ ==========
-local Settings = {
-    AutoFarm = false,
-    AutoClick = false,
-    Fly = false,
-    NoClip = false,
-    Speed = 50,
-    AntiAFK = true,
-    BossTP = false,
-    BossName = "Don Swan"
+-- === НАСТРОЙКИ ===
+local S = {
+    farm = false,
+    click = false,
+    fly = false,
+    noclip = false,
+    speed = 50,
+    antiafk = true,
+    bosstp = false,
+    bossname = "Don Swan"
 }
 
 -- Анти-АФК
 task.spawn(function()
-    while wait(50) do
-        if Settings.AntiAFK then
+    while wait(55) do
+        if S.antiafk then
             pcall(function()
                 VirtualUser:CaptureController()
                 VirtualUser:Button1Down(Vector2.new(0,0))
@@ -344,10 +340,10 @@ task.spawn(function()
     end
 end)
 
--- Автофарм + автоклик
+-- Фарм
 task.spawn(function()
     while wait(0.3) do
-        if Settings.AutoFarm and LocalPlayer.Character then
+        if S.farm and LocalPlayer.Character then
             local target = nil
             for _, v in pairs(workspace:GetDescendants()) do
                 if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
@@ -359,8 +355,8 @@ task.spawn(function()
             end
             if target then
                 pcall(function()
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 2, 2)
-                    if Settings.AutoClick then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0,2,2)
+                    if S.click then
                         local remote = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("Combat")
                         if remote then remote:FireServer(LocalPlayer.Character.HumanoidRootPart) end
                     end
@@ -375,18 +371,18 @@ local flyActive = false
 local bv, bg
 task.spawn(function()
     while wait(0.1) do
-        if Settings.Fly and not flyActive then
+        if S.fly and not flyActive then
             flyActive = true
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
+            local c = LocalPlayer.Character
+            if c and c:FindFirstChild("HumanoidRootPart") then
                 bv = Instance.new("BodyVelocity")
-                bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                bv.Parent = char.HumanoidRootPart
+                bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+                bv.Parent = c.HumanoidRootPart
                 bg = Instance.new("BodyGyro")
-                bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-                bg.Parent = char.HumanoidRootPart
+                bg.MaxTorque = Vector3.new(1e5,1e5,1e5)
+                bg.Parent = c.HumanoidRootPart
             end
-        elseif not Settings.Fly and flyActive then
+        elseif not S.fly and flyActive then
             flyActive = false
             if bv then bv:Destroy() end
             if bg then bg:Destroy() end
@@ -399,9 +395,9 @@ task.spawn(function()
                 if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0, 1, 0) end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0, 1, 0) end
-                bv.Velocity = move.Unit * Settings.Speed
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
+                bv.Velocity = move.Unit * S.speed
                 bg.CFrame = cam.CFrame
             end)
         end
@@ -411,11 +407,9 @@ end)
 -- NoClip
 task.spawn(function()
     while wait(0.5) do
-        if Settings.NoClip and LocalPlayer.Character then
+        if S.noclip and LocalPlayer.Character then
             for _, p in pairs(LocalPlayer.Character:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    pcall(function() p.CanCollide = false end)
-                end
+                if p:IsA("BasePart") then pcall(function() p.CanCollide = false end) end
             end
         end
     end
@@ -425,57 +419,51 @@ end)
 task.spawn(function()
     while wait(0.2) do
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = (Settings.Fly and 16) or Settings.Speed
+            LocalPlayer.Character.Humanoid.WalkSpeed = (S.fly and 16) or S.speed
         end
     end
 end)
 
--- Телепорт к боссу
+-- Босс телепорт
 task.spawn(function()
     while wait(1) do
-        if Settings.BossTP and LocalPlayer.Character then
+        if S.bosstp and LocalPlayer.Character then
             for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("Model") and v.Name:lower():find(Settings.BossName:lower()) then
+                if v:IsA("Model") and v.Name:lower():find(S.bossname:lower()) then
                     if v:FindFirstChild("HumanoidRootPart") then
-                        pcall(function()
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame
-                        end)
+                        pcall(function() LocalPlayer.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame end)
                         break
                     end
                 end
             end
-            Settings.BossTP = false
+            S.bosstp = false
         end
     end
 end)
 
--- ========== ПОСТРОЕНИЕ ВКЛАДОК ==========
-local mainTab = createTab("Фарм", "🤖")
-addToggle(mainTab, "Автофарм", function(v) Settings.AutoFarm = v end)
-addToggle(mainTab, "Автоклик", function(v) Settings.AutoClick = v end)
+-- === СОЗДАНИЕ ВКЛАДОК ===
+local t1 = addTab("Фарм", "🤖")
+toggle(t1, "Автофарм", function(v) S.farm = v end)
+toggle(t1, "Автоклик", function(v) S.click = v end)
 
-local moveTab = createTab("Движение", "🚀")
-addToggle(moveTab, "Fly", function(v) Settings.Fly = v end)
-addToggle(moveTab, "NoClip", function(v) Settings.NoClip = v end)
-addSlider(moveTab, "Скорость", 16, 200, 50, function(v) Settings.Speed = v end)
+local t2 = addTab("Движение", "🚀")
+toggle(t2, "Fly", function(v) S.fly = v end)
+toggle(t2, "NoClip", function(v) S.noclip = v end)
+slider(t2, "Скорость", 16, 200, 50, function(v) S.speed = v end)
 
-local bossTab = createTab("Боссы", "👑")
-addToggle(bossTab, "Телепорт к боссу", function(v) 
-    if v then Settings.BossTP = true end
-end)
-addDropdown(bossTab, "Выбор босса", {"Don Swan", "Grey Beard", "Diamond", "Thunder God", "Darkbeard"}, function(v)
-    Settings.BossName = v
-end)
+local t3 = addTab("Боссы", "👑")
+toggle(t3, "Телепорт к боссу", function(v) if v then S.bosstp = true end end)
+dropdown(t3, "Босс", {"Don Swan","Grey Beard","Diamond","Thunder God","Darkbeard"}, function(v) S.bossname = v end)
 
-local miscTab = createTab("Разное", "⚙️")
-addToggle(miscTab, "Anti-AFK", function(v) Settings.AntiAFK = v end)
+local t4 = addTab("Разное", "⚙️")
+toggle(t4, "Anti-AFK", function(v) S.antiafk = v end)
 
 pcall(function()
     game:GetService("StarterGui"):SetCore("SendNotification",{
         Title = "ForestHub",
-        Text = "Готово! Без ошибок.",
+        Text = "Загружен | Ключ: Forest",
         Duration = 2
     })
 end)
 
-print("ForestHub v212 загружен | Ключ: Forest")
+print("ForestHub v213 | Ошибок быть не должно")
