@@ -1,5 +1,5 @@
--- ForestHub Mobile v215 | Без ключа, без анимаций, без ошибок
--- Для Delta Client на телефон
+-- ForestHub Mobile v216 | Максимально простая, без глюков
+-- Для Delta Client
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -8,38 +8,35 @@ local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- === ГЛАВНОЕ МЕНЮ ===
+-- ГЛАВНОЕ ОКНО
 local gui = Instance.new("ScreenGui")
 gui.Name = "ForestHub"
 gui.ResetOnSpawn = false
 pcall(function() gui.Parent = CoreGui end)
-if not gui.Parent then
-    pcall(function() gui.Parent = game:GetService("Players").LocalPlayer.PlayerGui end)
-end
 if not gui.Parent then return end
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 280, 0, 350)
-main.Position = UDim2.new(0.5, -140, 0.5, -175)
-main.BackgroundColor3 = Color3.fromRGB(25,25,40)
+main.Size = UDim2.new(0, 300, 0, 400)
+main.Position = UDim2.new(0.5, -150, 0.5, -200)
+main.BackgroundColor3 = Color3.fromRGB(20,20,35)
 main.BorderSizePixel = 0
 main.Active = true
 main.Draggable = true
 main.Parent = gui
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,0,0,30)
-title.Text = "🌲 ForestHub Mobile"
+title.Size = UDim2.new(1,0,0,35)
+title.Text = "🌲 ForestHub"
 title.BackgroundColor3 = Color3.fromRGB(40,40,60)
-title.TextColor3 = Color3.fromRGB(255,180,80)
+title.TextColor3 = Color3.fromRGB(255,200,100)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 12
+title.TextSize = 14
 title.BorderSizePixel = 0
 title.Parent = main
 
 local close = Instance.new("TextButton")
-close.Size = UDim2.new(0,30,1,0)
-close.Position = UDim2.new(1,-30,0,0)
+close.Size = UDim2.new(0,35,1,0)
+close.Position = UDim2.new(1,-35,0,0)
 close.Text = "X"
 close.TextColor3 = Color3.fromRGB(255,100,100)
 close.BackgroundTransparency = 1
@@ -49,188 +46,164 @@ close.BorderSizePixel = 0
 close.Parent = title
 close.MouseButton1Click:Connect(function() gui:Destroy() end)
 
+-- ПАНЕЛЬ ВКЛАДОК
 local tabBar = Instance.new("Frame")
-tabBar.Size = UDim2.new(1,0,0,30)
-tabBar.Position = UDim2.new(0,0,0,30)
+tabBar.Size = UDim2.new(1,0,0,35)
+tabBar.Position = UDim2.new(0,0,0,35)
 tabBar.BackgroundColor3 = Color3.fromRGB(30,30,50)
 tabBar.BorderSizePixel = 0
 tabBar.Parent = main
 
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1,0,1,-60)
-content.Position = UDim2.new(0,0,0,60)
-content.BackgroundColor3 = Color3.fromRGB(20,20,35)
-content.BorderSizePixel = 0
-content.Parent = main
+-- КОНТЕЙНЕР ДЛЯ КОНТЕНТА (простой Frame, без ScrollingFrame)
+local contentContainer = Instance.new("Frame")
+contentContainer.Size = UDim2.new(1,0,1,-70)
+contentContainer.Position = UDim2.new(0,0,0,70)
+contentContainer.BackgroundColor3 = Color3.fromRGB(25,27,40)
+contentContainer.BorderSizePixel = 0
+contentContainer.Parent = main
 
+-- СОЗДАЁМ ВКЛАДКИ
 local tabs = {}
 local currentTab = nil
 
-local function addTab(name, icon)
+local function createTab(name, icon, yOffset)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 65, 1, 0)
+    btn.Size = UDim2.new(0, 75, 1, 0)
     btn.Text = icon .. " " .. name
     btn.TextColor3 = Color3.fromRGB(200,200,220)
     btn.BackgroundColor3 = Color3.fromRGB(35,35,55)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 10
+    btn.TextSize = 11
     btn.BorderSizePixel = 0
     btn.Parent = tabBar
     
-    local panel = Instance.new("ScrollingFrame")
-    panel.Size = UDim2.new(1,0,1,0)
-    panel.BackgroundTransparency = 1
-    panel.ScrollBarThickness = 2
-    panel.BorderSizePixel = 0
-    panel.Parent = content
-    panel.Visible = false
+    -- Контент вкладки — просто Frame с кнопками
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1,0,1,0)
+    content.BackgroundTransparency = 1
+    content.Visible = false
+    content.Parent = contentContainer
     
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 5)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = panel
+    -- Сдвигаем кнопки по вертикали
+    local y = yOffset or 10
+    
+    tabs[name] = {btn = btn, content = content, y = y}
     
     btn.MouseButton1Click:Connect(function()
         for _, v in pairs(tabs) do
-            v.panel.Visible = false
+            v.content.Visible = false
             v.btn.BackgroundColor3 = Color3.fromRGB(35,35,55)
         end
-        panel.Visible = true
+        content.Visible = true
         btn.BackgroundColor3 = Color3.fromRGB(80,100,140)
         currentTab = name
     end)
     
-    tabs[name] = {btn = btn, panel = panel, layout = layout}
-    if not currentTab then btn.MouseButton1Click:Fire() end
-    return panel
+    return content, y
 end
 
-local function addToggle(parent, text, callback)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -10, 0, 32)
-    f.Position = UDim2.new(0, 5, 0, 0)
-    f.BackgroundColor3 = Color3.fromRGB(35,37,50)
-    f.BorderSizePixel = 0
-    f.Parent = parent
-    
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1, -50, 1, 0)
-    l.Text = text
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.fromRGB(220,220,240)
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 11
-    l.BorderSizePixel = 0
-    l.Parent = f
-    
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0, 40, 0, 22)
-    b.Position = UDim2.new(1, -45, 0.5, -11)
-    b.BackgroundColor3 = Color3.fromRGB(80,80,110)
-    b.Text = ""
-    b.BorderSizePixel = 0
-    b.Parent = f
+-- Функция добавления кнопки-переключателя
+local function addToggle(parent, text, y, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 260, 0, 35)
+    btn.Position = UDim2.new(0.5, -130, 0, y)
+    btn.Text = text .. " [ВЫКЛ]"
+    btn.BackgroundColor3 = Color3.fromRGB(40,45,65)
+    btn.TextColor3 = Color3.fromRGB(220,220,240)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    btn.Parent = parent
     
     local state = false
-    b.MouseButton1Click:Connect(function()
+    btn.MouseButton1Click:Connect(function()
         state = not state
-        b.BackgroundColor3 = state and Color3.fromRGB(70,180,70) or Color3.fromRGB(80,80,110)
+        btn.Text = text .. (state and " [ВКЛ]" or " [ВЫКЛ]")
+        btn.BackgroundColor3 = state and Color3.fromRGB(70,130,70) or Color3.fromRGB(40,45,65)
         if callback then callback(state) end
     end)
+    return btn
 end
 
-local function addSlider(parent, text, minVal, maxVal, defaultVal, callback)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -10, 0, 55)
-    f.Position = UDim2.new(0, 5, 0, 0)
-    f.BackgroundColor3 = Color3.fromRGB(35,37,50)
-    f.BorderSizePixel = 0
-    f.Parent = parent
+local function addSlider(parent, text, y, minVal, maxVal, defaultVal, callback)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 260, 0, 20)
+    label.Position = UDim2.new(0.5, -130, 0, y)
+    label.Text = text .. ": " .. tostring(defaultVal)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(200,200,220)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 11
+    label.Parent = parent
     
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1,0,0,18)
-    l.Text = text .. ": " .. tostring(defaultVal)
-    l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.fromRGB(220,220,240)
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 11
-    l.BorderSizePixel = 0
-    l.Parent = f
-    
-    local bg = Instance.new("TextButton")
-    bg.Size = UDim2.new(1, -20, 0, 14)
-    bg.Position = UDim2.new(0, 10, 0, 32)
-    bg.BackgroundColor3 = Color3.fromRGB(55,55,75)
-    bg.Text = ""
-    bg.BorderSizePixel = 0
-    bg.Parent = f
+    local sliderBg = Instance.new("TextButton")
+    sliderBg.Size = UDim2.new(0, 260, 0, 15)
+    sliderBg.Position = UDim2.new(0.5, -130, 0, y + 22)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(60,60,80)
+    sliderBg.Text = ""
+    sliderBg.BorderSizePixel = 0
+    sliderBg.Parent = parent
     
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new((defaultVal-minVal)/(maxVal-minVal), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(100,160,230)
+    fill.BackgroundColor3 = Color3.fromRGB(100,180,250)
     fill.BorderSizePixel = 0
-    fill.Parent = bg
+    fill.Parent = sliderBg
     
     local val = defaultVal
     local drag = false
     
-    bg.InputBegan:Connect(function(input)
+    sliderBg.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch then drag = true end
     end)
-    bg.InputEnded:Connect(function() drag = false end)
+    sliderBg.InputEnded:Connect(function() drag = false end)
+    
     UserInputService.TouchMoved:Connect(function(input)
-        if drag and bg and bg.AbsoluteSize.X > 0 then
-            local percent = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
+        if drag and sliderBg and sliderBg.AbsoluteSize.X > 0 then
+            local percent = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
             val = math.floor(minVal + (maxVal - minVal) * percent + 0.5)
             fill.Size = UDim2.new((val-minVal)/(maxVal-minVal), 0, 1, 0)
-            l.Text = text .. ": " .. tostring(val)
+            label.Text = text .. ": " .. tostring(val)
             if callback then callback(val) end
         end
     end)
+    
+    return label
 end
 
-local function addDropdown(parent, text, options, callback)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -10, 0, 38)
-    f.Position = UDim2.new(0, 5, 0, 0)
-    f.BackgroundColor3 = Color3.fromRGB(35,37,50)
-    f.BorderSizePixel = 0
-    f.Parent = parent
-    
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(0.45, 0, 1, 0)
-    l.Text = text
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.fromRGB(220,220,240)
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 10
-    l.BorderSizePixel = 0
-    l.Parent = f
+local function addDropdown(parent, text, y, options, callback)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 160, 0, 25)
+    label.Position = UDim2.new(0.5, -140, 0, y)
+    label.Text = text
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(200,200,220)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 11
+    label.Parent = parent
     
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.5, -5, 0.7, 0)
-    btn.Position = UDim2.new(0.5, 5, 0.15, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(60,60,85)
+    btn.Size = UDim2.new(0, 100, 0, 25)
+    btn.Position = UDim2.new(0.5, 40, 0, y)
     btn.Text = options[1]
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,85)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 10
     btn.BorderSizePixel = 0
-    btn.Parent = f
+    btn.Parent = parent
     
     local current = options[1]
     btn.MouseButton1Click:Connect(function()
         local list = Instance.new("Frame")
-        list.Size = UDim2.new(0.5, -5, 0, #options * 24)
-        list.Position = UDim2.new(0.5, 5, 1, 0)
+        list.Size = UDim2.new(0, 100, 0, #options * 25)
+        list.Position = UDim2.new(0.5, 40, 0, y + 25)
         list.BackgroundColor3 = Color3.fromRGB(50,50,70)
         list.BorderSizePixel = 0
-        list.Parent = f
+        list.Parent = parent
         for i, opt in ipairs(options) do
             local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, 0, 0, 24)
+            optBtn.Size = UDim2.new(1,0,0,25)
             optBtn.Text = opt
             optBtn.BackgroundColor3 = Color3.fromRGB(55,55,80)
             optBtn.TextColor3 = Color3.fromRGB(240,240,255)
@@ -260,7 +233,7 @@ local S = {
     bossname = "Don Swan"
 }
 
--- Анти-АФК
+-- АНТИ-АФК
 task.spawn(function()
     while wait(55) do
         if S.antiafk then
@@ -273,7 +246,7 @@ task.spawn(function()
     end
 end)
 
--- Автофарм + автоклик
+-- АВТОФАРМ
 task.spawn(function()
     while wait(0.3) do
         if S.farm and LocalPlayer.Character then
@@ -299,7 +272,7 @@ task.spawn(function()
     end
 end)
 
--- Fly
+-- FLY
 local flyActive = false
 local bv, bg
 task.spawn(function()
@@ -337,7 +310,7 @@ task.spawn(function()
     end
 end)
 
--- NoClip
+-- NOCLIP
 task.spawn(function()
     while wait(0.5) do
         if S.noclip and LocalPlayer.Character then
@@ -348,7 +321,7 @@ task.spawn(function()
     end
 end)
 
--- Speed
+-- SPEED
 task.spawn(function()
     while wait(0.2) do
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -357,7 +330,7 @@ task.spawn(function()
     end
 end)
 
--- Телепорт к боссу
+-- ТЕЛЕПОРТ К БОССУ
 task.spawn(function()
     while wait(1) do
         if S.bosstp and LocalPlayer.Character then
@@ -374,29 +347,41 @@ task.spawn(function()
     end
 end)
 
--- === СОЗДАНИЕ ВКЛАДОК ===
-local t1 = addTab("Фарм", "🤖")
-addToggle(t1, "Автофарм", function(v) S.farm = v end)
-addToggle(t1, "Автоклик", function(v) S.click = v end)
+-- === СОЗДАНИЕ ВКЛАДОК И КНОПОК ===
 
-local t2 = addTab("Движение", "🚀")
-addToggle(t2, "Fly", function(v) S.fly = v end)
-addToggle(t2, "NoClip", function(v) S.noclip = v end)
-addSlider(t2, "Скорость", 16, 200, 50, function(v) S.speed = v end)
+-- Вкладка Фарм
+local farmContent, fy = createTab("Фарм", "🤖", 10)
+addToggle(farmContent, "Автофарм", fy, function(v) S.farm = v end)
+addToggle(farmContent, "Автоклик", fy + 45, function(v) S.click = v end)
 
-local t3 = addTab("Боссы", "👑")
-addToggle(t3, "Телепорт к боссу", function(v) if v then S.bosstp = true end end)
-addDropdown(t3, "Босс", {"Don Swan","Grey Beard","Diamond","Thunder God","Darkbeard"}, function(v) S.bossname = v end)
+-- Вкладка Движение
+local moveContent, my = createTab("Движение", "🚀", 10)
+addToggle(moveContent, "Fly (WASD+Space)", my, function(v) S.fly = v end)
+addToggle(moveContent, "NoClip", my + 45, function(v) S.noclip = v end)
+addSlider(moveContent, "Скорость", my + 90, 16, 200, 50, function(v) S.speed = v end)
 
-local t4 = addTab("Разное", "⚙️")
-addToggle(t4, "Anti-AFK", function(v) S.antiafk = v end)
+-- Вкладка Боссы
+local bossContent, by = createTab("Боссы", "👑", 10)
+addToggle(bossContent, "Телепорт к боссу", by, function(v) if v then S.bosstp = true end end)
+addDropdown(bossContent, "Босс", by + 45, {"Don Swan","Grey Beard","Diamond","Thunder God","Darkbeard"}, function(v) S.bossname = v end)
+
+-- Вкладка Разное
+local miscContent, msy = createTab("Разное", "⚙️", 10)
+addToggle(miscContent, "Anti-AFK", msy, function(v) S.antiafk = v end)
+
+-- Выбрать первую вкладку по умолчанию
+for _, v in pairs(tabs) do
+    v.content.Visible = false
+end
+tabs["Фарм"].content.Visible = true
+tabs["Фарм"].btn.BackgroundColor3 = Color3.fromRGB(80,100,140)
 
 pcall(function()
     game:GetService("StarterGui"):SetCore("SendNotification",{
         Title = "ForestHub",
-        Text = "Загружен!",
+        Text = "Загружен! Нажми на вкладки",
         Duration = 2
     })
 end)
 
-print("ForestHub v215 загружен | Без ключа")
+print("ForestHub v216 загружен | Нажми на вкладки Фарм, Движение, Боссы, Разное")
