@@ -1,331 +1,183 @@
--- ForestPS99 v2.1 | Телефон-фикс | Delta Client
--- Ручное позиционирование, без ScrollingFrame
+--[[
+    Pet Simulator 99 – Backrooms Event Ultimate Farmer
+    Delta Executor (Android/iOS)
+    Функции:
+    - Поиск топ-яйца (Титаник/Гаргантюа/Хуг/сильнейшие петы)
+    - Телепорт к нему + автооткрытие
+    - Ноклип (проход сквозь стены)
+    - Автосбор фрагментов реальности
+    - Анти-энтити (телепорт при опасности)
+    - Автоклик порталов
+    - Автооткрытие всех яиц
+    - Бесконечный прыжок + ускорение
+]]
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local VirtualUser = game:GetService("VirtualUser")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
--- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "ForestPS99"
-gui.ResetOnSpawn = false
-pcall(function() gui.Parent = CoreGui end)
-if not gui.Parent then
-    pcall(function() gui.Parent = LocalPlayer.PlayerGui end)
-end
-if not gui.Parent then return end
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
-local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 300, 0, 420)
-main.Position = UDim2.new(0.5, -150, 0.5, -210)
-main.BackgroundColor3 = Color3.fromRGB(20,20,40)
-main.BorderSizePixel = 0
-main.Active = true
-main.Draggable = true
-main.Parent = gui
+-- Настройки
+local noclipEnabled = true
+local speedBoost = 30
+local avoidEntities = true
+local entityNames = {"hound", "faceling", "smiler", "skin stealer", "clump"}
+local fragmentName = "Fragment"
+local portalName = "Portal"
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,0,0,35)
-title.Text = "🐾 ForestPS99 v2.1 | Телефон"
-title.BackgroundColor3 = Color3.fromRGB(40,40,65)
-title.TextColor3 = Color3.fromRGB(255,200,100)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 12
-title.BorderSizePixel = 0
-title.Parent = main
+-- Список ключевых слов для топ-петов (ищем в названии яйца или его параметрах)
+local topPetKeywords = {"titanic", "gargantuan", "huge", "titanium", "mythic", "divine"}
 
-local close = Instance.new("TextButton")
-close.Size = UDim2.new(0,35,1,0)
-close.Position = UDim2.new(1,-35,0,0)
-close.Text = "X"
-close.TextColor3 = Color3.fromRGB(255,100,100)
-close.BackgroundTransparency = 1
-close.Font = Enum.Font.GothamBold
-close.TextSize = 16
-close.BorderSizePixel = 0
-close.Parent = title
-close.MouseButton1Click:Connect(function() gui:Destroy() end)
-
--- Панель вкладок
-local tabBar = Instance.new("Frame")
-tabBar.Size = UDim2.new(1,0,0,35)
-tabBar.Position = UDim2.new(0,0,0,35)
-tabBar.BackgroundColor3 = Color3.fromRGB(30,30,55)
-tabBar.BorderSizePixel = 0
-tabBar.Parent = main
-
--- Контейнер для содержимого (простой Frame)
-local contentContainer = Instance.new("Frame")
-contentContainer.Size = UDim2.new(1,0,1,-70)
-contentContainer.Position = UDim2.new(0,0,0,70)
-contentContainer.BackgroundColor3 = Color3.fromRGB(25,27,45)
-contentContainer.BorderSizePixel = 0
-contentContainer.Parent = main
-
--- Хранилище вкладок
-local tabs = {}
-local currentTab = nil
-
--- Функция создания вкладки (с ручным управлением видимостью)
-local function createTab(name, icon)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 75, 1, 0)
-    btn.Text = icon .. " " .. name
-    btn.TextColor3 = Color3.fromRGB(200,200,220)
-    btn.BackgroundColor3 = Color3.fromRGB(35,35,60)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 11
-    btn.BorderSizePixel = 0
-    btn.Parent = tabBar
-    
-    -- Контейнер для кнопок этой вкладки (простой Frame)
-    local panel = Instance.new("Frame")
-    panel.Size = UDim2.new(1,0,1,0)
-    panel.BackgroundTransparency = 1
-    panel.Visible = false
-    panel.Parent = contentContainer
-    
-    btn.MouseButton1Click:Connect(function()
-        for _, v in pairs(tabs) do
-            v.panel.Visible = false
-            v.btn.BackgroundColor3 = Color3.fromRGB(35,35,60)
-        end
-        panel.Visible = true
-        btn.BackgroundColor3 = Color3.fromRGB(90,110,160)
-        currentTab = name
-    end)
-    
-    tabs[name] = {btn = btn, panel = panel}
-    return panel
-end
-
--- Функция добавления кнопки-тумблера (ручной Y)
-local function addToggle(parent, text, y, callback)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(0, 260, 0, 36)
-    f.Position = UDim2.new(0.5, -130, 0, y)
-    f.BackgroundColor3 = Color3.fromRGB(35,37,55)
-    f.BorderSizePixel = 0
-    f.Parent = parent
-    
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1, -60, 1, 0)
-    l.Text = text
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.fromRGB(220,220,240)
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 12
-    l.BorderSizePixel = 0
-    l.Parent = f
-    
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 50, 0, 26)
-    btn.Position = UDim2.new(1, -55, 0.5, -13)
-    btn.BackgroundColor3 = Color3.fromRGB(80,80,110)
-    btn.Text = ""
-    btn.BorderSizePixel = 0
-    btn.Parent = f
-    
-    local state = false
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        btn.BackgroundColor3 = state and Color3.fromRGB(70,180,70) or Color3.fromRGB(80,80,110)
-        if callback then callback(state) end
-    end)
-end
-
--- Функция добавления слайдера
-local function addSlider(parent, text, y, minVal, maxVal, defaultVal, callback)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(0, 260, 0, 60)
-    f.Position = UDim2.new(0.5, -130, 0, y)
-    f.BackgroundColor3 = Color3.fromRGB(35,37,55)
-    f.BorderSizePixel = 0
-    f.Parent = parent
-    
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1,0,0,20)
-    l.Text = text .. ": " .. tostring(defaultVal)
-    l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.fromRGB(220,220,240)
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 11
-    l.BorderSizePixel = 0
-    l.Parent = f
-    
-    local bg = Instance.new("TextButton")
-    bg.Size = UDim2.new(1, -20, 0, 16)
-    bg.Position = UDim2.new(0, 10, 0, 35)
-    bg.BackgroundColor3 = Color3.fromRGB(55,55,80)
-    bg.Text = ""
-    bg.BorderSizePixel = 0
-    bg.Parent = f
-    
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((defaultVal-minVal)/(maxVal-minVal), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(100,180,250)
-    fill.BorderSizePixel = 0
-    fill.Parent = bg
-    
-    local val = defaultVal
-    local drag = false
-    
-    bg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then drag = true end
-    end)
-    bg.InputEnded:Connect(function() drag = false end)
-    
-    UserInputService.TouchMoved:Connect(function(input)
-        if drag and bg and bg.AbsoluteSize.X > 0 then
-            local percent = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
-            val = math.floor(minVal + (maxVal - minVal) * percent + 0.5)
-            fill.Size = UDim2.new((val-minVal)/(maxVal-minVal), 0, 1, 0)
-            l.Text = text .. ": " .. tostring(val)
-            if callback then callback(val) end
-        end
-    end)
-end
-
--- ========== НАСТРОЙКИ ==========
-local S = {
-    autoBreak = false,
-    autoCollect = false,
-    autoOpenEggs = false,
-    autoUpgrade = false,
-    fly = false,
-    speed = 50
-}
-
--- ========== ФУНКЦИИ ==========
-task.spawn(function()
-    while wait(0.2) do
-        if S.autoBreak and LocalPlayer.Character then
-            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-            if tool then
-                pcall(function()
-                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("BreakBlock")
-                    if remote then remote:FireServer(tool, CFrame.new()) end
-                end)
+-- Ноклип
+game:GetService("RunService").Stepped:Connect(function()
+    if noclipEnabled and character and character:FindFirstChild("HumanoidRootPart") then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
             end
         end
     end
 end)
 
-task.spawn(function()
-    while wait(0.3) do
-        if S.autoCollect then
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("Model") and (v.Name:lower():find("coin") or v.Name:lower():find("diamond") or v.Name:lower():find("chest")) then
-                    local part = v:FindFirstChild("Part") or v:FindFirstChild("HumanoidRootPart")
-                    if part then
-                        pcall(function()
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = part.CFrame
-                        end)
-                        break
+-- Поиск лучшего яйца по названию / петам внутри
+local function findBestEgg()
+    local bestEgg = nil
+    local bestScore = -1
+    -- Ищем все объекты, которые могут быть яйцами (обычно это модели с ClickDetector)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("ClickDetector") then
+            local name = obj.Name:lower()
+            local score = 0
+            -- Проверяем ключевые слова в имени яйца
+            for _, kw in ipairs(topPetKeywords) do
+                if name:find(kw) then
+                    score = score + 10
+                end
+            end
+            -- Проверяем наличие внутри объектов-петов с нужными именами (например, StringValue "PetList")
+            for _, child in ipairs(obj:GetDescendants()) do
+                if child:IsA("StringValue") or child:IsA("ObjectValue") then
+                    local childName = child.Name:lower()
+                    for _, kw in ipairs(topPetKeywords) do
+                        if childName:find(kw) then score = score + 5 end
+                    end
+                end
+            end
+            if score > bestScore then
+                bestScore = score
+                bestEgg = obj
+            end
+        end
+    end
+    return bestEgg
+end
+
+-- Телепорт
+local function teleportTo(target)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local root = character.HumanoidRootPart
+    local pos = target.PrimaryPart and target.PrimaryPart.Position or target:GetPivot().p
+    local tweenInfo = TweenInfo.new((root.Position - pos).Magnitude / speedBoost, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, tweenInfo, {CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+-- Открытие яйца
+local function clickEgg(egg)
+    if egg and egg:FindFirstChild("ClickDetector") then
+        fireclickdetector(egg.ClickDetector)
+        wait(0.3)
+    end
+end
+
+-- Анти-энтити
+local function checkEntities()
+    if not avoidEntities then return end
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("Model") or v:IsA("Part") then
+            local name = v.Name:lower()
+            for _, ename in ipairs(entityNames) do
+                if name:find(ename) then
+                    local pos = v:IsA("Model") and (v:FindFirstChild("HumanoidRootPart") or v.PrimaryPart) and (v.HumanoidRootPart or v.PrimaryPart).Position or v.Position
+                    if pos and (root.Position - pos).Magnitude < 18 then
+                        root.CFrame = root.CFrame + Vector3.new(math.random(-40,40), 0, math.random(-40,40))
+                        return
                     end
                 end
             end
         end
     end
-end)
+end
 
-task.spawn(function()
-    while wait(0.5) do
-        if S.autoOpenEggs then
-            local egg = LocalPlayer.Backpack:FindFirstChildWhichIsA("Tool") or LocalPlayer.Character:FindFirstChildWhichIsA("Tool")
-            if egg and egg:FindFirstChild("ClickDetector") then
-                pcall(function() egg.ClickDetector:Click() end)
+-- Сбор фрагментов
+local function farmFragments()
+    for _, part in ipairs(workspace:GetDescendants()) do
+        if part:IsA("Part") and part.Name == fragmentName and part:FindFirstChild("ClickDetector") then
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            if root and (root.Position - part.Position).Magnitude < 80 then
+                fireclickdetector(part.ClickDetector)
+                wait(0.1)
             end
         end
     end
-end)
+end
 
-task.spawn(function()
-    while wait(1) do
-        if S.autoUpgrade then
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("Model") and (v.Name:lower():find("upgrade") or v.Name:lower():find("rebirth")) then
-                    if v:FindFirstChild("ClickDetector") then
-                        pcall(function() v.ClickDetector:Click() end)
-                    end
-                end
+-- Портал-кликер
+local function clickPortals()
+    for _, part in ipairs(workspace:GetDescendants()) do
+        if part:IsA("Part") and (part.Name == portalName or part.Name:lower():find("portal")) and part:FindFirstChild("ClickDetector") then
+            fireclickdetector(part.ClickDetector)
+            wait(0.5)
+        end
+    end
+end
+
+-- Главный цикл
+print("Backrooms Ultimate Farmer запущен. Игрок: " .. player.Name)
+local lastEggCheck = 0
+while task.wait(0.1) do
+    character = player.Character
+    if not character then continue end
+    humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then continue end
+
+    -- Прыжок и скорость
+    if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
+        humanoid.Jump = true
+    end
+    humanoid.WalkSpeed = speedBoost
+
+    -- Раз в 5 сек перепроверяем топ-яйцо
+    if tick() - lastEggCheck > 5 then
+        lastEggCheck = tick()
+        local bestEgg = findBestEgg()
+        if bestEgg then
+            teleportTo(bestEgg)
+            for _ = 1, 15 do
+                clickEgg(bestEgg)
+                wait(0.35)
             end
         end
     end
-end)
 
--- Fly
-local flyActive = false
-local bv, bg
-task.spawn(function()
-    while wait(0.1) do
-        if S.fly and not flyActive then
-            flyActive = true
-            local c = LocalPlayer.Character
-            if c and c:FindFirstChild("HumanoidRootPart") then
-                bv = Instance.new("BodyVelocity")
-                bv.MaxForce = Vector3.new(1e5,1e5,1e5)
-                bv.Parent = c.HumanoidRootPart
-                bg = Instance.new("BodyGyro")
-                bg.MaxTorque = Vector3.new(1e5,1e5,1e5)
-                bg.Parent = c.HumanoidRootPart
+    -- Стандартный фарм
+    farmFragments()
+    checkEntities()
+    clickPortals()
+
+    -- Фарм обычных яиц, если топ-яйцо не найдено
+    if not findBestEgg() then
+        for _, egg in pairs(workspace:GetDescendants()) do
+            if egg:IsA("Model") and egg:FindFirstChild("ClickDetector") and egg.Name:lower():find("egg") then
+                clickEgg(egg)
+                wait(0.1)
             end
-        elseif not S.fly and flyActive then
-            flyActive = false
-            if bv then bv:Destroy() end
-            if bg then bg:Destroy() end
-        end
-        if flyActive and bv and LocalPlayer.Character then
-            pcall(function()
-                local cam = workspace.CurrentCamera
-                local move = Vector3.new()
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
-                bv.Velocity = move.Unit * S.speed
-                bg.CFrame = cam.CFrame
-            end)
         end
     end
-end)
-
--- Анти-АФК
-task.spawn(function()
-    while wait(55) do
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:Button1Down(Vector2.new(0,0))
-            VirtualUser:Button1Up(Vector2.new(0,0))
-        end)
-    end
-end)
-
--- ========== СОЗДАНИЕ ВКЛАДОК (ручные Y) ==========
-local farmPanel = createTab("Фарм", "⚡")
-addToggle(farmPanel, "Авто-ломание", 10, function(v) S.autoBreak = v end)
-addToggle(farmPanel, "Авто-сбор монет", 55, function(v) S.autoCollect = v end)
-addToggle(farmPanel, "Авто-открытие яиц", 100, function(v) S.autoOpenEggs = v end)
-addToggle(farmPanel, "Авто-апгрейд", 145, function(v) S.autoUpgrade = v end)
-
-local movePanel = createTab("Движение", "🚀")
-addToggle(movePanel, "Fly (WASD+Space)", 10, function(v) S.fly = v end)
-addSlider(movePanel, "Скорость", 60, 20, 200, 70, function(v) S.speed = v end)
-
--- Активация первой вкладки
-tabs["Фарм"].btn.MouseButton1Click:Fire()
-
-pcall(function()
-    game:GetService("StarterGui"):SetCore("SendNotification",{
-        Title = "ForestPS99",
-        Text = "Телефон-версия | Вкладки работают",
-        Duration = 3
-    })
-end)
-
-print("ForestPS99 v2.1 | Вкладки: Фарм и Движение")
+end
