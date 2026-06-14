@@ -1,22 +1,28 @@
 --[[
-    Pet Simulator 99 - Backrooms Ultimate Farmer v2.0
+    Pet Simulator 99 - Backrooms Ultimate Farmer v2.1 FIXED
     Delta Executor (Android/iOS)
-    - Полное меню (GUI)
-    - Автовыгрузка предыдущей версии
-    - Ноклип, фарм, анти-энтити, поиск топ-яйца
+    Исправлено: меню появляется, персонаж не летает сам по себе
 ]]
 
--- ===== АВТОВЫГРУЗКА СТАРОЙ ВЕРСИИ =====
+-- ===== АВТОВЫГРУЗКА ПРЕДЫДУЩЕЙ ВЕРСИИ =====
 if shared.BackroomsFarmer then
     shared.BackroomsFarmer.Unload()
 end
+wait(1) -- даём время на выгрузку старого GUI
 
--- ===== СОЗДАНИЕ МЕНЮ =====
+-- ===== СОЗДАНИЕ МЕНЮ (ждём PlayerGui) =====
 local player = game:GetService("Players").LocalPlayer
-local screenGui = Instance.new("ScreenGui")
+local screenGui
+
+-- Ждём, пока PlayerGui станет доступен
+repeat
+    task.wait(0.5)
+until player:FindFirstChild("PlayerGui")
+
+screenGui = Instance.new("ScreenGui")
 screenGui.Name = "BackroomsFarmerGUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.Parent = player.PlayerGui -- теперь точно будет
 
 -- Главная рамка
 local mainFrame = Instance.new("Frame")
@@ -33,7 +39,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Backrooms Farmer v2.0"
+title.Text = "Backrooms Farmer v2.1"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 18
 title.Parent = mainFrame
@@ -168,10 +174,13 @@ end)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local connections = {}
 local farmLoopRunning = false
+local lastTeleportTime = 0
+local teleportCooldown = 8 -- секунд между телепортами к топ-яйцу
 
 local entityNames = {"hound", "faceling", "smiler", "skin stealer", "clump"}
 local fragmentName = "Fragment"
@@ -180,15 +189,16 @@ local topPetKeywords = {"titanic", "gargantuan", "huge", "titanium", "mythic", "
 
 -- Ноклип
 local function noclipLoop()
-    while settings.noclipEnabled do
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            for _, part in ipairs(character:GetDescendants()) do
+    while settings.noclipEnabled and farmLoopRunning do
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            for _, part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") and part.CanCollide == true then
                     part.CanCollide = false
                 end
             end
         end
-        task.wait(0.1)
+        task.wait(0.15)
     end
 end
 
@@ -215,15 +225,18 @@ local function findBestEgg()
     return bestEgg
 end
 
--- Телепорт
+-- Телепорт с проверкой расстояния (чтобы не лететь без нужды)
 local function teleportTo(target)
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-    local root = character.HumanoidRootPart
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
     local pos = target.PrimaryPart and target.PrimaryPart.Position or target:GetPivot().p
-    local tweenInfo = TweenInfo.new((root.Position - pos).Magnitude / settings.speedBoost, Enum.EasingStyle.Linear)
+    local distance = (root.Position - pos).Magnitude
+    if distance < 15 then return false end -- уже рядом, не телепортируемся
+    local tweenInfo = TweenInfo.new(distance / settings.speedBoost, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(root, tweenInfo, {CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))})
     tween:Play()
     tween.Completed:Wait()
+    return true
 end
 
 -- Клик по яйцу
@@ -237,24 +250,25 @@ end
 -- Основной фермерский цикл
 local function farmLoop()
     while farmLoopRunning do
-        if not character or not character:FindFirstChild("HumanoidRootPart") then
-            character = player.Character
-            if character then humanoid = character:WaitForChild("Humanoid") end
+        local char = player.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then
             task.wait(1)
             continue
         end
-        if humanoid then
-            if settings.autoJump and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
-                humanoid.Jump = true
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            if settings.autoJump and hum:GetState() ~= Enum.HumanoidStateType.Freefall then
+                hum.Jump = true
             end
-            humanoid.WalkSpeed = settings.speedBoost
+            hum.WalkSpeed = settings.speedBoost
         end
 
         -- Сбор фрагментов
         if settings.farmFragments then
             for _, part in ipairs(workspace:GetDescendants()) do
                 if part:IsA("Part") and part.Name == fragmentName and part:FindFirstChild("ClickDetector") then
-                    if (character.HumanoidRootPart.Position - part.Position).Magnitude < 80 then
+                    local dist = (char.HumanoidRootPart.Position - part.Position).Magnitude
+                    if dist < 80 then
                         fireclickdetector(part.ClickDetector)
                         task.wait(0.1)
                     end
@@ -264,7 +278,7 @@ local function farmLoop()
 
         -- Анти-энтити
         if settings.avoidEntities then
-            local root = character.HumanoidRootPart
+            local root = char.HumanoidRootPart
             for _, v in ipairs(workspace:GetDescendants()) do
                 if v:IsA("Model") or v:IsA("Part") then
                     for _, ename in ipairs(entityNames) do
@@ -290,18 +304,26 @@ local function farmLoop()
             end
         end
 
-        -- Поиск топ-яйца и открытие
-        if settings.searchBestEgg then
+        -- Поиск топ-яйца с кулдауном телепорта
+        if settings.searchBestEgg and tick() - lastTeleportTime > teleportCooldown then
             local bestEgg = findBestEgg()
             if bestEgg then
-                teleportTo(bestEgg)
-                for _ = 1, 15 do
-                    clickEgg(bestEgg)
+                local teleported = teleportTo(bestEgg)
+                if teleported then
+                    lastTeleportTime = tick()
+                    for _ = 1, 15 do
+                        clickEgg(bestEgg)
+                    end
+                else
+                    -- если рядом, просто открываем без телепорта
+                    for _ = 1, 10 do
+                        clickEgg(bestEgg)
+                    end
                 end
             end
         end
 
-        -- Открытие остальных яиц (если нет топ-яйца или просто включена опция)
+        -- Открытие остальных яиц (если не ищем топ или выключено)
         if settings.openEggs and not settings.searchBestEgg then
             for _, egg in ipairs(workspace:GetDescendants()) do
                 if egg:IsA("Model") and egg:FindFirstChild("ClickDetector") and egg.Name:lower():find("egg") then
@@ -324,14 +346,16 @@ end
 
 local function stopFarm()
     farmLoopRunning = false
-    -- удаляем все активные твины и соединения
+    -- удаляем GUI
+    if screenGui then
+        screenGui:Destroy()
+    end
+    -- очищаем все соединения, если есть (не используются, но на будущее)
     for _, conn in ipairs(connections) do
         conn:Disconnect()
     end
     connections = {}
-    if screenGui then
-        screenGui:Destroy()
-    end
+    shared.BackroomsFarmer = nil
 end
 
 -- Сохраняем объект для выгрузки
@@ -339,5 +363,6 @@ shared.BackroomsFarmer = {
     Unload = stopFarm
 }
 
--- Стартуем
+-- Небольшая задержка перед стартом, чтобы всё загрузилось
+task.wait(1)
 startFarm()
