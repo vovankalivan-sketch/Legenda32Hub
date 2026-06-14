@@ -1,179 +1,204 @@
 --[[
-    Ноклип + Бесконечный прыжок + Флай (Рабочее меню)
-    Для Delta Executor (Android/iOS)
+    Ноклип + Беск. прыжок + Флай + Скорость + X-Ray
+    Delta Executor (Android/iOS)
 ]]
 
 local player = game:GetService("Players").LocalPlayer
 local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-gui.Name = "NoclipJumpFlyGUI"
+gui.Name = "UltimateCheatsGUI"
 
+-- Главное окно
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 200, 0, 170)
-frame.Position = UDim2.new(0.5, -100, 0.2, 0)
-frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.Size = UDim2.new(0, 210, 0, 220)
+frame.Position = UDim2.new(0.5, -105, 0.2, 0)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 frame.Active = true
 frame.Draggable = true
 
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 25)
-title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+title.Size = UDim2.new(1, 0, 0, 24)
+title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Ноклип + Прыжок + Флай"
+title.Text = "Ultimate Cheats"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 14
 
--- Вспомогательная функция для создания переключателя
-local function createToggle(yPos, labelText, callback)
-    local back = Instance.new("Frame", frame)
-    back.Size = UDim2.new(1, -20, 0, 28)
-    back.Position = UDim2.new(0, 10, 0, yPos)
-    back.BackgroundTransparency = 1
+-- Функция создания переключателя
+local function createToggle(y, text, callback)
+    local container = Instance.new("Frame", frame)
+    container.Size = UDim2.new(1, -20, 0, 28)
+    container.Position = UDim2.new(0, 10, 0, y)
+    container.BackgroundTransparency = 1
 
-    local btn = Instance.new("TextButton", back)
+    local btn = Instance.new("TextButton", container)
     btn.Size = UDim2.new(0, 50, 0, 24)
-    btn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Text = "OFF"
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 14
+    btn.TextSize = 13
 
-    local lbl = Instance.new("TextLabel", back)
-    lbl.Size = UDim2.new(0, 110, 0, 24)
-    lbl.Position = UDim2.new(0, 60, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    lbl.Text = labelText
-    lbl.Font = Enum.Font.SourceSans
-    lbl.TextSize = 14
+    local label = Instance.new("TextLabel", container)
+    label.Size = UDim2.new(0, 120, 0, 24)
+    label.Position = UDim2.new(0, 55, 0, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Text = text
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 13
 
-    local active = false
+    local state = false
     btn.MouseButton1Click:Connect(function()
-        active = not active
-        btn.Text = active and "ON" or "OFF"
-        btn.BackgroundColor3 = active and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
-        callback(active)
+        state = not state
+        btn.Text = state and "ON" or "OFF"
+        btn.BackgroundColor3 = state and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(80, 80, 80)
+        callback(state)
     end)
-    return btn, lbl
+    return btn, label
 end
 
 -- Состояния
-local noclipEnabled = false
-local jumpEnabled = false
-local flyEnabled = false
-local verticalVelocity = 0
-local bodyVelocity, bodyGyro
+local noclip = false
+local infJump = false
+local fly = false
+local xray = false
+local verticalVel = 0
+local walkSpeed = 20
+local bv, bg
 
 -- Ноклип
 game:GetService("RunService").Stepped:Connect(function()
-    if noclipEnabled and player.Character then
+    if noclip and player.Character then
         for _, v in ipairs(player.Character:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.CanCollide = false
-            end
+            if v:IsA("BasePart") then v.CanCollide = false end
         end
     end
 end)
 
--- Бесконечный прыжок (исправлено)
+-- Бесконечный прыжок
 game:GetService("RunService").Heartbeat:Connect(function()
-    if jumpEnabled and player.Character then
+    if infJump and player.Character then
         local hum = player.Character:FindFirstChild("Humanoid")
-        if hum and (hum:GetState() == Enum.HumanoidStateType.Landed or hum:GetState() == Enum.HumanoidStateType.Running) then
+        if hum and hum:GetState() == Enum.HumanoidStateType.Landed then
             hum.Jump = true
         end
     end
 end)
 
--- Управление флаем
-local function onFlyChanged(value)
-    flyEnabled = value
+-- Флай
+local function toggleFly(value)
+    fly = value
     if not value then
-        -- Выключаем
-        verticalVelocity = 0
-        if bodyVelocity then bodyVelocity:Destroy(); bodyVelocity = nil end
-        if bodyGyro then bodyGyro:Destroy(); bodyGyro = nil end
+        verticalVel = 0
+        if bv then bv:Destroy(); bv = nil end
+        if bg then bg:Destroy(); bg = nil end
         return
     end
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    local root = player.Character.HumanoidRootPart
-    bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
-    bodyVelocity.Velocity = Vector3.zero
-    bodyVelocity.Parent = root
-
-    bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
-    bodyGyro.CFrame = root.CFrame
-    bodyGyro.Parent = root
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(400000, 400000, 400000)
+    bv.Velocity = Vector3.zero
+    bv.Parent = root
+    bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(400000, 400000, 400000)
+    bg.CFrame = root.CFrame
+    bg.Parent = root
 end
 
 game:GetService("RunService").Heartbeat:Connect(function()
-    if flyEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+    if fly and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         local root = player.Character.HumanoidRootPart
         local hum = player.Character:FindFirstChild("Humanoid")
-        if hum and bodyVelocity and bodyGyro then
-            local moveDir = hum.MoveDirection * 30 -- горизонтальная скорость
-            bodyVelocity.Velocity = moveDir + Vector3.new(0, verticalVelocity, 0)
-            bodyGyro.CFrame = root.CFrame
+        if hum and bv and bg then
+            bv.Velocity = hum.MoveDirection * 25 + Vector3.new(0, verticalVel, 0)
+            bg.CFrame = root.CFrame
         end
     end
 end)
 
--- Создаем тогглы
-createToggle(30, "Ноклип", function(v) noclipEnabled = v end)
-createToggle(60, "Беск. прыжок", function(v) jumpEnabled = v end)
-local flyToggle, _ = createToggle(90, "Флай", onFlyChanged)
+-- X-Ray (прозрачность всех частей, кроме игрока)
+local xrayTransparency = 0.8
+game:GetService("RunService").Heartbeat:Connect(function()
+    if xray then
+        local char = player.Character
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not obj:IsDescendantOf(char) then
+                obj.Transparency = xrayTransparency
+            end
+        end
+    end
+end)
 
--- Кнопки подъема/спуска (появляются только при активном флае)
+-- Управление скоростью
+game:GetService("RunService").Heartbeat:Connect(function()
+    if player.Character then
+        local hum = player.Character:FindFirstChild("Humanoid")
+        if hum then hum.WalkSpeed = walkSpeed end
+    end
+end)
+
+-- Создаём меню
+createToggle(35, "Ноклип", function(v) noclip = v end)
+createToggle(65, "Беск. прыжок", function(v) infJump = v end)
+local flyToggle, _ = createToggle(95, "Флай", function(v)
+    toggleFly(v)
+    upBtn.Visible = v
+    downBtn.Visible = v
+end)
+createToggle(125, "X-Ray", function(v) xray = v end)
+
+-- Слайдер скорости
+local speedLabel = Instance.new("TextLabel", frame)
+speedLabel.Size = UDim2.new(0, 120, 0, 24)
+speedLabel.Position = UDim2.new(0, 10, 0, 155)
+speedLabel.BackgroundTransparency = 1
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Text = "Скорость: 20"
+speedLabel.Font = Enum.Font.SourceSans
+speedLabel.TextSize = 13
+
+local speedBox = Instance.new("TextBox", frame)
+speedBox.Size = UDim2.new(0, 50, 0, 24)
+speedBox.Position = UDim2.new(0.6, 0, 0, 155)
+speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.Text = "20"
+speedBox.Font = Enum.Font.SourceSans
+speedBox.TextSize = 13
+speedBox.FocusLost:Connect(function()
+    local num = tonumber(speedBox.Text)
+    if num and num >= 16 and num <= 200 then
+        walkSpeed = num
+        speedLabel.Text = "Скорость: " .. num
+    else
+        speedBox.Text = walkSpeed
+    end
+end)
+
+-- Кнопки флая (вверх/вниз)
 local upBtn = Instance.new("TextButton", frame)
-upBtn.Size = UDim2.new(0, 40, 0, 40)
-upBtn.Position = UDim2.new(0.7, 0, 0.55, 0)
-upBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 200)
+upBtn.Size = UDim2.new(0, 35, 0, 35)
+upBtn.Position = UDim2.new(0.7, 0, 0.5, 0)
+upBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 200)
 upBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 upBtn.Text = "↑"
 upBtn.Font = Enum.Font.SourceSansBold
-upBtn.TextSize = 24
+upBtn.TextSize = 20
 upBtn.Visible = false
 
 local downBtn = Instance.new("TextButton", frame)
-downBtn.Size = UDim2.new(0, 40, 0, 40)
-downBtn.Position = UDim2.new(0.7, 0, 0.82, 0)
-downBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+downBtn.Size = UDim2.new(0, 35, 0, 35)
+downBtn.Position = UDim2.new(0.7, 0, 0.7, 0)
+downBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 downBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 downBtn.Text = "↓"
 downBtn.Font = Enum.Font.SourceSansBold
-downBtn.TextSize = 24
+downBtn.TextSize = 20
 downBtn.Visible = false
 
--- Обработчики нажатий
-upBtn.MouseButton1Down:Connect(function()
-    if flyEnabled then verticalVelocity = 50 end
-end)
-upBtn.MouseButton1Up:Connect(function()
-    verticalVelocity = 0
-end)
-downBtn.MouseButton1Down:Connect(function()
-    if flyEnabled then verticalVelocity = -50 end
-end)
-downBtn.MouseButton1Up:Connect(function()
-    verticalVelocity = 0
-end)
-
--- При переключении флая показываем/скрываем кнопки
-flyToggle.MouseButton1Click:Connect(function()
-    -- не трогаем, уже обработано в createToggle
-end)
--- Подправим: нужно после создания flyToggle обновить видимость кнопок при его активации
--- Проще всего добавить проверку в onFlyChanged
--- Переопределим onFlyChanged
-local oldFlyChanged = onFlyChanged
-onFlyChanged = function(value)
-    oldFlyChanged(value)
-    upBtn.Visible = value
-    downBtn.Visible = value
-end
--- Теперь свяжем заново (уже поздно, надо было до createToggle)
--- Просто удалим старый flyToggle и создадим новый с правильным колбэком
-flyToggle:Destroy()
-local flyToggleNew, _ = createToggle(90, "Флай", onFlyChanged)
--- Кнопки остались те же, onFlyChanged теперь управляет их видимостью
+upBtn.MouseButton1Down:Connect(function() if fly then verticalVel = 45 end end)
+upBtn.MouseButton1Up:Connect(function() verticalVel = 0 end)
+downBtn.MouseButton1Down:Connect(function() if fly then verticalVel = -45 end end)
+downBtn.MouseButton1Up:Connect(function() verticalVel = 0 end)
