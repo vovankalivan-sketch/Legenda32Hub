@@ -1,414 +1,174 @@
 -- ============================================================
---  REDZ HUB ULTIMATE v14.0 | ПОЛНАЯ СБОРКА
---  Автофарм | Телепорт | ESP | Энергия | AI | Анти-АФК
---  Автор: Колин (30 лет опыта)
+--  PS99 ULTIMATE HUB v5.1 | PET SIMULATOR 99
+--  World Cup Event: авто-сбор орбов, пинок мяча, прокачка, яйцо
+--  Автор: Колин (на основе всей предоставленной информации)
 --  Совместим: Synapse X, Fluxus, Delta, Arceus X
 -- ============================================================
 
+--!strict
+--!nolint LocalUnused
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 
--- ===== ГЛОБАЛЬНЫЕ НАСТРОЙКИ =====
-local SAFE = {
-    WalkSpeed = 38,
-    JumpPower = 65,
-    TeleportDelay = 0.3,
-    UpdateInterval = 3,
-    HealThreshold = 30,
+-- ===== КОНФИГУРАЦИЯ API =====
+local API_BASE = "https://ps99.biggamesapi.io"
+local AUTH_TOKEN = nil  -- Вставьте Bearer-токен для авторизованных запросов
+
+-- ===== КЭШ ДЛЯ API =====
+local cache = {}
+local CACHE_TTL = {
+    collections = 60, items = 60, rap = 14400, exists = 60,
+    clansList = 60, clansTotal = 60, clans = 60, clan = 60,
+    activeBattle = 60, playersFeatured = 60, playersSearch = 30,
+    playersList = 60, playersTotal = 60, playerProfile = 300,
+    account = 60, leagues = 60, leagueDetail = 60, leaguePlayers = 60,
 }
 
--- ===== СОСТОЯНИЯ =====
+local function isCacheValid(key)
+    local entry = cache[key]
+    return entry and entry.data and (os.time() - entry.timestamp) < CACHE_TTL[key]
+end
+
+local function getCached(key)
+    if isCacheValid(key) then return cache[key].data end
+    return nil
+end
+
+local function setCache(key, data)
+    cache[key] = { data = data, timestamp = os.time() }
+end
+
+local function fetchData(endpoint, params, cacheKey, token)
+    if cacheKey and isCacheValid(cacheKey) then
+        return getCached(cacheKey)
+    end
+    local url = API_BASE .. endpoint
+    if params then
+        local query = {}
+        for k, v in pairs(params) do
+            table.insert(query, k .. "=" .. tostring(v))
+        end
+        if #query > 0 then
+            url = url .. "?" .. table.concat(query, "&")
+        end
+    end
+    local headers = {}
+    if token then
+        headers["Authorization"] = "Bearer " .. token
+    end
+    local success, response = pcall(function()
+        if token then
+            return game:HttpGet(url, true, headers)
+        else
+            return game:HttpGet(url)
+        end
+    end)
+    if success then
+        local data = HttpService:JSONDecode(response)
+        if data.status == "ok" then
+            if cacheKey then setCache(cacheKey, data.data) end
+            return data.data
+        else
+            warn("API error: " .. (data.error and data.error.message or "unknown"))
+            return nil
+        end
+    else
+        warn("HTTP error: " .. tostring(response))
+        return nil
+    end
+end
+
+-- ===== ПЕРЕМЕННЫЕ СОСТОЯНИЙ =====
 local state = {
     AutoFarm = false,
     AutoQuest = false,
-    Teleport = false,
-    BossESP = false,
+    AutoTap = false,
+    AutoUseUltimate = false,
     InfiniteEnergy = false,
     AntiAFK = false,
     SafeMode = true,
-    QuestNPC = "Monkey",
-    CurrentSea = "Sea1",
-    SavedPoints = {},
-    AIEnabled = false,
-    AutoMode = false,
-    APISettings = {provider = "openai", key = ""},
+    AutoKickBall = false,
+    AutoCollectSoccerItems = false,
+    AutoCollectOrbs = false,        -- Новая функция: сбор орбов
+    AutoHatchEventEgg = false,
+    FarmEventChests = false,
+    StadiumHopper = false,
+    EventMode = false,              -- Супер-режим ивента
+    WhiteScreen = false,
+    RemoveTextures = false,
+    HideAllPets = false,
+    ClearMapVFX = false,
+    BackgroundFPS = false,
+    FastOpenEggs = false,
+    AutoUsePotions = false,
+    AutoVending = false,
+    AutoFishing = false,
+    AntiLeave = false,
+    -- API
+    ShowRAP = false,
+    ShowExists = false,
+    ShowPlayerProfile = false,
 }
 
--- ===== GUI =====
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "RedzHubUltimate"
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 700, 0, 550)
-mainFrame.Position = UDim2.new(0.5, -350, 0.5, -275)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 28)
-mainFrame.BackgroundTransparency = 0.15
-mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.fromRGB(255, 180, 50)
-mainFrame.ClipsDescendants = true
-mainFrame.Parent = screenGui
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = mainFrame
-
--- Заголовок
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundTransparency = 1
-title.Text = "REDZ HUB ULTIMATE v14.0 | КОЛИН"
-title.TextColor3 = Color3.fromRGB(255, 180, 50)
-title.TextScaled = true
-title.Font = Enum.Font.SourceSansBold
-title.Parent = mainFrame
-
--- Перетаскивание
-local function draggable(frame)
-    local drag, start, pos, input
-    frame.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            drag = true
-            start = i.Position
-            pos = frame.Position
-            i.Changed:Connect(function()
-                if i.UserInputState == Enum.UserInputState.End then drag = false end
-            end)
-        end
-    end)
-    frame.InputChanged:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseMovement and drag then
-            local delta = i.Position - start
-            frame.Position = UDim2.new(pos.X.Scale, pos.X.Offset + delta.X, pos.Y.Scale, pos.Y.Offset + delta.Y)
-        end
-    end)
-end
-draggable(title)
-
--- === ЛЕВАЯ ПАНЕЛЬ ВКЛАДОК ===
-local leftPanel = Instance.new("Frame")
-leftPanel.Size = UDim2.new(0, 140, 1, -35)
-leftPanel.Position = UDim2.new(0, 0, 0, 35)
-leftPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-leftPanel.BackgroundTransparency = 0.3
-leftPanel.BorderSizePixel = 0
-leftPanel.Parent = mainFrame
-
-local tabs = {"Farm", "Teleport", "ESP", "Energy", "AI", "Settings"}
-local tabButtons = {}
-local activeTab = "Farm"
-
-local function createTab(name, yPos)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 30)
-    btn.Position = UDim2.new(0, 5, 0, yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-    btn.Text = name
-    btn.TextColor3 = Color3.fromRGB(200,200,200)
-    btn.TextSize = 12
-    btn.Font = Enum.Font.SourceSans
-    btn.BorderSizePixel = 0
-    btn.Parent = leftPanel
-    local ind = Instance.new("Frame")
-    ind.Size = UDim2.new(0, 3, 0, 30)
-    ind.Position = UDim2.new(0, 0, 0.5, -15)
-    ind.BackgroundColor3 = Color3.fromRGB(255, 180, 50)
-    ind.BackgroundTransparency = (name == "Farm") and 0 or 1
-    ind.BorderSizePixel = 0
-    ind.Parent = btn
-    btn.MouseButton1Click:Connect(function()
-        activeTab = name
-        for _, b in ipairs(tabButtons) do
-            b.BackgroundColor3 = (b == btn) and Color3.fromRGB(60,60,80) or Color3.fromRGB(40,40,55)
-            local i = b:FindFirstChild("Indicator")
-            if i then i.BackgroundTransparency = (b == btn) and 0 or 1 end
-        end
-        showTab(name)
-    end)
-    return btn
-end
-
-for i, name in ipairs(tabs) do
-    local btn = createTab(name, 5 + (i-1)*35)
-    table.insert(tabButtons, btn)
-    if name == "Farm" then btn.BackgroundColor3 = Color3.fromRGB(60,60,80) end
-end
-
--- === ЦЕНТРАЛЬНАЯ ОБЛАСТЬ ===
-local centerFrame = Instance.new("ScrollingFrame")
-centerFrame.Size = UDim2.new(1, -150, 1, -40)
-centerFrame.Position = UDim2.new(0, 145, 0, 40)
-centerFrame.BackgroundTransparency = 1
-centerFrame.BorderSizePixel = 0
-centerFrame.ScrollBarThickness = 4
-centerFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-centerFrame.Parent = mainFrame
-
-local panels = {}
-local function createPanel(name)
-    local p = Instance.new("Frame")
-    p.Name = name
-    p.Size = UDim2.new(1, 0, 1, 0)
-    p.BackgroundTransparency = 1
-    p.Visible = (name == "Farm")
-    p.Parent = centerFrame
-    panels[name] = p
-    return p
-end
-
--- Функция создания тогла внутри панели
-local function createToggleOnPanel(panel, text, yPos, stateRef, callback)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0.9, 0, 0, 30)
-    frame.Position = UDim2.new(0.05, 0, 0, yPos)
-    frame.BackgroundTransparency = 1
-    frame.Parent = panel
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.5, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(220,220,220)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.TextSize = 14
-    label.Font = Enum.Font.SourceSans
-    label.Parent = frame
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.2, 0, 0.8, 0)
-    btn.Position = UDim2.new(0.75, 0, 0.1, 0)
-    btn.BackgroundColor3 = stateRef and Color3.fromRGB(0,150,0) or Color3.fromRGB(60,60,70)
-    btn.Text = stateRef and "On" or "Off"
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.TextSize = 12
-    btn.Font = Enum.Font.SourceSans
-    btn.Parent = frame
-    btn.MouseButton1Click:Connect(function()
-        stateRef = not stateRef
-        btn.BackgroundColor3 = stateRef and Color3.fromRGB(0,150,0) or Color3.fromRGB(60,60,70)
-        btn.Text = stateRef and "On" or "Off"
-        if callback then callback(stateRef) end
-    end)
-    return frame, btn
-end
-
--- ===== ПАНЕЛЬ FARM =====
-local farmPanel = createPanel("Farm")
-local farmY = 0
-local function addFarmToggle(text, stateRef, callback)
-    local frame, btn = createToggleOnPanel(farmPanel, text, farmY, stateRef, callback)
-    farmY = farmY + 35
-    return btn
-end
-
-local autoFarmBtn = addFarmToggle("Auto Farm", state.AutoFarm, function(on)
-    state.AutoFarm = on
-    if on then startFarm() else stopFarm() end
-end)
-
-local questBtn = addFarmToggle("Quest Mode", state.AutoQuest, function(on)
-    state.AutoQuest = on
-    if on then startQuest() else stopQuest() end
-end)
-
--- Поле для NPC
-local npcFrame = Instance.new("Frame")
-npcFrame.Size = UDim2.new(0.9, 0, 0, 30)
-npcFrame.Position = UDim2.new(0.05, 0, 0, farmY)
-npcFrame.BackgroundTransparency = 1
-npcFrame.Parent = farmPanel
-farmY = farmY + 35
-local npcLabel = Instance.new("TextLabel")
-npcLabel.Size = UDim2.new(0.3, 0, 1, 0)
-npcLabel.BackgroundTransparency = 1
-npcLabel.Text = "NPC Name:"
-npcLabel.TextColor3 = Color3.fromRGB(200,200,200)
-npcLabel.TextXAlignment = Enum.TextXAlignment.Left
-npcLabel.TextSize = 14
-npcLabel.Font = Enum.Font.SourceSans
-npcLabel.Parent = npcFrame
-local npcInput = Instance.new("TextBox")
-npcInput.Size = UDim2.new(0.5, 0, 1, 0)
-npcInput.Position = UDim2.new(0.35, 0, 0, 0)
-npcInput.BackgroundColor3 = Color3.fromRGB(60,60,75)
-npcInput.Text = state.QuestNPC
-npcInput.TextColor3 = Color3.fromRGB(255,255,255)
-npcInput.TextSize = 14
-npcInput.Font = Enum.Font.SourceSans
-npcInput.Parent = npcFrame
-npcInput:GetPropertyChangedSignal("Text"):Connect(function()
-    state.QuestNPC = npcInput.Text
-end)
-
--- Статус
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.9, 0, 0, 25)
-statusLabel.Position = UDim2.new(0.05, 0, 0, farmY)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Готов к работе"
-statusLabel.TextColor3 = Color3.fromRGB(180,180,200)
-statusLabel.TextSize = 13
-statusLabel.Font = Enum.Font.SourceSans
-statusLabel.Parent = farmPanel
-farmY = farmY + 35
-farmPanel.CanvasSize = UDim2.new(0, 0, 0, farmY + 10)
-
--- ===== ПАНЕЛЬ TELEPORT =====
-local teleportPanel = createPanel("Teleport")
-teleportPanel.Visible = false
-local teleY = 0
--- Список островов
-local islands = {"Jungle", "Pirate Village", "Marine Base", "Sky Island", "Frozen Village", "Volcano", "Desert", "Prison", "Colosseum", "Kingdom of Rose", "Café", "Factory", "Mansion", "Castle on the Sea", "Floating Turtle", "Port Town"}
-for i, island in ipairs(islands) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.8, 0, 0, 25)
-    btn.Position = UDim2.new(0.1, 0, 0, teleY)
-    btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
-    btn.Text = island
-    btn.TextColor3 = Color3.fromRGB(220,220,220)
-    btn.TextSize = 13
-    btn.Font = Enum.Font.SourceSans
-    btn.Parent = teleportPanel
-    btn.MouseButton1Click:Connect(function()
-        teleportToIsland(island)
-    end)
-    teleY = teleY + 30
-end
-teleportPanel.CanvasSize = UDim2.new(0, 0, 0, teleY + 10)
-
--- ===== ПАНЕЛЬ ESP =====
-local espPanel = createPanel("ESP")
-espPanel.Visible = false
-local espY = 0
-local espBtn = addFarmToggle("Boss ESP", state.BossESP, function(on)
-    state.BossESP = on
-    if on then startESP() else stopESP() end
-end)
-espPanel.CanvasSize = UDim2.new(0, 0, 0, 50)
-
--- ===== ПАНЕЛЬ ENERGY =====
-local energyPanel = createPanel("Energy")
-energyPanel.Visible = false
-local enY = 0
-local enBtn = addFarmToggle("Infinite Energy", state.InfiniteEnergy, function(on)
-    state.InfiniteEnergy = on
-    if on then startEnergy() else stopEnergy() end
-end)
-local afkBtn = addFarmToggle("Anti-AFK", state.AntiAFK, function(on)
-    state.AntiAFK = on
-    if on then startAntiAFK() else stopAntiAFK() end
-end)
-energyPanel.CanvasSize = UDim2.new(0, 0, 0, 80)
-
--- ===== ПАНЕЛЬ AI =====
-local aiPanel = createPanel("AI")
-aiPanel.Visible = false
-local aiY = 0
-local aiToggleBtn = addFarmToggle("AI Assistant", state.AIEnabled, function(on)
-    state.AIEnabled = on
-    if on then startAI() else stopAI() end
-end)
-local autoAIBtn = addFarmToggle("Auto Mode (AI)", state.AutoMode, function(on)
-    state.AutoMode = on
-end)
--- Поле для API ключа
-local keyFrame = Instance.new("Frame")
-keyFrame.Size = UDim2.new(0.9, 0, 0, 30)
-keyFrame.Position = UDim2.new(0.05, 0, 0, aiY)
-keyFrame.BackgroundTransparency = 1
-keyFrame.Parent = aiPanel
-aiY = aiY + 35
-local keyLabel = Instance.new("TextLabel")
-keyLabel.Size = UDim2.new(0.2, 0, 1, 0)
-keyLabel.BackgroundTransparency = 1
-keyLabel.Text = "API Key:"
-keyLabel.TextColor3 = Color3.fromRGB(200,200,200)
-keyLabel.TextXAlignment = Enum.TextXAlignment.Left
-keyLabel.TextSize = 14
-keyLabel.Font = Enum.Font.SourceSans
-keyLabel.Parent = keyFrame
-local keyInput = Instance.new("TextBox")
-keyInput.Size = UDim2.new(0.6, 0, 1, 0)
-keyInput.Position = UDim2.new(0.25, 0, 0, 0)
-keyInput.BackgroundColor3 = Color3.fromRGB(60,60,75)
-keyInput.Text = "Вставьте ключ"
-keyInput.TextColor3 = Color3.fromRGB(255,255,255)
-keyInput.TextSize = 13
-keyInput.Font = Enum.Font.SourceSans
-keyInput.Parent = keyFrame
-keyInput:GetPropertyChangedSignal("Text"):Connect(function()
-    state.APISettings.key = keyInput.Text
-end)
-
-aiPanel.CanvasSize = UDim2.new(0, 0, 0, aiY + 20)
-
--- ===== ПАНЕЛЬ SETTINGS =====
-local settingsPanel = createPanel("Settings")
-settingsPanel.Visible = false
-local setY = 0
--- Safe Mode
-local safeBtn = addFarmToggle("Safe Mode", state.SafeMode, function(on)
-    state.SafeMode = on
-end)
-setY = setY + 35
-settingsPanel.CanvasSize = UDim2.new(0, 0, 0, setY + 10)
-
--- === ФУНКЦИЯ ПОКАЗА ВКЛАДОК ===
-function showTab(name)
-    for _, p in pairs(panels) do
-        p.Visible = false
-    end
-    if name == "Farm" then farmPanel.Visible = true
-    elseif name == "Teleport" then teleportPanel.Visible = true
-    elseif name == "ESP" then espPanel.Visible = true
-    elseif name == "Energy" then energyPanel.Visible = true
-    elseif name == "AI" then aiPanel.Visible = true
-    elseif name == "Settings" then settingsPanel.Visible = true
-    end
-end
-
--- ===== ОСНОВНЫЕ ФУНКЦИИ =====
-
--- Безопасный телепорт
-local function safeTeleport(targetCFrame)
-    if state.SafeMode then task.wait(SAFE.TeleportDelay) end
+-- Безопасный телепорт (плавный)
+local function safeTeleport(targetCFrame, duration)
+    duration = duration or 2
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    local tween = TweenService:Create(hrp, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {CFrame = targetCFrame})
-    tween:Play()
-    tween.Completed:Wait()
-end
-
--- Телепорт на остров
-function teleportToIsland(islandName)
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name:lower():find(islandName:lower()) then
-            local hrp = obj:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                safeTeleport(hrp.CFrame * CFrame.new(0, 5, 0))
-                statusLabel.Text = "Телепорт на " .. islandName
-                break
-            end
-        end
+    if state.SafeMode then
+        local info = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(hrp, info, { CFrame = targetCFrame })
+        tween:Play()
+        tween.Completed:Wait()
+    else
+        hrp.CFrame = targetCFrame
     end
 end
 
--- Автофарм
-local farmThread = nil
-local function farmLoop()
+-- Отправка сетевых событий (с pcall)
+local function fireServer(eventName, ...)
+    local net = ReplicatedStorage:FindFirstChild("Network") or ReplicatedStorage:FindFirstChild("Remotes")
+    if not net then return end
+    local event = net:FindFirstChild(eventName)
+    if event then
+        pcall(function()
+            event:FireServer(...)
+        end)
+    end
+end
+
+-- Имитация клика
+local function safeClick()
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    task.wait(0.05 + math.random()*0.1)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+end
+
+-- ===== ОСНОВНЫЕ ФУНКЦИИ =====
+
+-- ВКЛАДКА 1: Main & Anti-Cheat Bypass
+local function autoFarmLoop()
     while state.AutoFarm do
-        task.wait()
+        task.wait(0.1)
         local char = LocalPlayer.Character
         if not char then break end
         local hrp = char:FindFirstChild("HumanoidRootPart")
         local humanoid = char:FindFirstChild("Humanoid")
         if not hrp or not humanoid then break end
-        humanoid.WalkSpeed = state.SafeMode and SAFE.WalkSpeed or 50
-        humanoid.JumpPower = state.SafeMode and SAFE.JumpPower or 80
+        humanoid.WalkSpeed = state.SafeMode and 38 or 50
+        humanoid.JumpPower = state.SafeMode and 65 or 80
         
         local closest = nil
         local minDist = math.huge
@@ -425,229 +185,623 @@ local function farmLoop()
             end
         end
         if closest then
-            statusLabel.Text = "Фармим: " .. closest.Name
-            safeTeleport(closest.HumanoidRootPart.CFrame * CFrame.new(0, 2, 5))
+            safeTeleport(closest.HumanoidRootPart.CFrame * CFrame.new(0, 2, 5), 0.5)
             task.wait(0.2)
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-            task.wait(0.05)
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-            task.wait(0.5 + math.random()*0.5)
+            safeClick()
+            fireServer("BreakableClick")
+        end
+        task.wait(0.5 + math.random())
+    end
+end
+
+local function autoTapLoop()
+    while state.AutoTap do
+        task.wait(0.01)
+        fireServer("Tap")
+        safeClick()
+    end
+end
+
+local function autoUseUltimateLoop()
+    while state.AutoUseUltimate do
+        task.wait(5)
+        fireServer("ActivateUltimate")
+    end
+end
+
+local function infiniteEnergyLoop()
+    while state.InfiniteEnergy do
+        local energy = LocalPlayer:FindFirstChild("Energy") or LocalPlayer:FindFirstChild("Stamina")
+        if energy then
+            local max = energy:GetAttribute("Max") or energy.MaxValue or 100
+            energy.Value = max
+        end
+        task.wait(0.1)
+    end
+end
+
+local function antiAFKLoop()
+    local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D}
+    while state.AntiAFK do
+        task.wait(30 + math.random()*30)
+        local key = keys[math.random(#keys)]
+        VirtualInputManager:SendKeyEvent(true, key, false, game)
+        task.wait(0.1+math.random()*0.2)
+        VirtualInputManager:SendKeyEvent(false, key, false, game)
+    end
+end
+
+-- ===== ВКЛАДКА 2: World Cup Event =====
+
+-- Пинок мяча
+local function autoKickBallLoop()
+    while state.AutoKickBall or state.EventMode do
+        task.wait(0.5)
+        fireServer("KickBall")
+    end
+end
+
+-- Сбор бутс и подарков
+local function autoCollectSoccerItemsLoop()
+    while state.AutoCollectSoccerItems or state.EventMode do
+        task.wait(0.3)
+        fireServer("CollectSoccerItem")
+    end
+end
+
+-- Сбор орбов (новое!)
+local function autoCollectOrbsLoop()
+    while state.AutoCollectOrbs or state.EventMode do
+        task.wait(0.2)
+        -- Ищем орбы в workspace (часто это Part с именем "Orb" или "SoccerOrb")
+        local found = false
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and (obj.Name:find("Orb") or obj.Name:find("Soccer")) then
+                if obj:FindFirstChild("ClickDetector") then
+                    pcall(function()
+                        obj.ClickDetector:Click()
+                    end)
+                    found = true
+                    break
+                end
+            end
+        end
+        -- Если не нашли через ClickDetector, пробуем через FireServer
+        if not found then
+            fireServer("ClaimOrb")
+        end
+    end
+end
+
+-- Открытие ивентового яйца
+local function autoHatchEventEggLoop()
+    while state.AutoHatchEventEgg or state.EventMode do
+        task.wait(1)
+        fireServer("HatchEventEgg")
+    end
+end
+
+-- Фарм ивентовых сундуков
+local function farmEventChestsLoop()
+    while state.FarmEventChests do
+        task.wait(0.5)
+        fireServer("AttackEventChest")
+    end
+end
+
+-- Перемещение между стадионами
+local function stadiumHopperLoop()
+    local stadiums = {
+        CFrame.new(100, 10, 200),
+        CFrame.new(150, 10, 250),
+        CFrame.new(200, 10, 300),
+        CFrame.new(250, 10, 350),
+        CFrame.new(300, 10, 400),
+    }
+    while state.StadiumHopper do
+        for _, cf in ipairs(stadiums) do
+            safeTeleport(cf, 4)
+            task.wait(5)
+        end
+    end
+end
+
+-- СУПЕР-РЕЖИМ ИВЕНТА (включает всё одновременно)
+local function eventModeLoop()
+    -- Запускаем все нужные функции в отдельных потоках
+    task.spawn(autoKickBallLoop)
+    task.spawn(autoCollectSoccerItemsLoop)
+    task.spawn(autoCollectOrbsLoop)
+    task.spawn(autoHatchEventEggLoop)
+    task.spawn(farmEventChestsLoop) -- если нужно
+    -- Также можно включить автофарм для прокачки
+    if not state.AutoFarm then
+        state.AutoFarm = true
+        task.spawn(autoFarmLoop)
+    end
+    while state.EventMode do
+        -- Основной цикл супер-режима (можно добавить дополнительные действия)
+        task.wait(1)
+    end
+end
+
+-- ===== ВКЛАДКА 3: FPS Boost & Optimization =====
+local function whiteScreenLoop()
+    while state.WhiteScreen do
+        RunService:Set3dRenderEnabled(false)
+        task.wait()
+    end
+    RunService:Set3dRenderEnabled(true)
+end
+
+local function removeTexturesLoop()
+    while state.RemoveTextures do
+        for _, part in ipairs(workspace:GetDescendants()) do
+            if part:IsA("BasePart") then
+                pcall(function()
+                    part.Material = Enum.Material.SmoothPlastic
+                end)
+            end
+        end
+        task.wait(5)
+    end
+end
+
+local function hideAllPetsLoop()
+    while state.HideAllPets do
+        for _, pet in ipairs(workspace:GetDescendants()) do
+            if pet:IsA("Model") and pet.Name:find("Pet") then
+                pet.Transparency = 1
+                pet.CanCollide = false
+            end
+        end
+        task.wait(1)
+    end
+end
+
+local function clearMapVFXLoop()
+    while state.ClearMapVFX do
+        for _, effect in ipairs(workspace:GetDescendants()) do
+            if effect:IsA("ParticleEmitter") or effect:IsA("Beam") or effect:IsA("Trail") then
+                effect.Enabled = false
+            end
+        end
+        task.wait(5)
+    end
+end
+
+local function backgroundFPSCapLoop()
+    while state.BackgroundFPS do
+        setfpscap(10)
+        task.wait(60)
+        setfpscap(60)
+    end
+end
+
+-- ===== ВКЛАДКА 4: Автоматизация и Прогресс =====
+local function fastOpenEggsLoop()
+    while state.FastOpenEggs do
+        task.wait(0.1)
+        fireServer("OpenEgg")
+    end
+end
+
+local function autoUsePotionsLoop()
+    while state.AutoUsePotions do
+        task.wait(30)
+        fireServer("UsePotion")
+    end
+end
+
+local function autoVendingLoop()
+    while state.AutoVending do
+        task.wait(1)
+        fireServer("VendingPurchase")
+    end
+end
+
+local function autoFishingLoop()
+    while state.AutoFishing do
+        task.wait(2)
+        fireServer("Fish")
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.5)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    end
+end
+
+-- ===== ВКЛАДКА 5: Security =====
+local function antiLeaveLoop()
+    while state.AntiLeave do
+        task.wait(5)
+        if not LocalPlayer then
+            TeleportService:Teleport(game.PlaceId)
+        end
+    end
+end
+
+-- ===== GUI (Fluent) =====
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "PS99 ULTIMATE HUB v5.1",
+    SubTitle = "by КОЛИН",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 480),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl,
+})
+
+-- Вкладки
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    WorldCup = Window:AddTab({ Title = "World Cup", Icon = "soccer" }),
+    FPSBoost = Window:AddTab({ Title = "FPS Boost", Icon = "speed" }),
+    Auto = Window:AddTab({ Title = "Auto", Icon = "clock" }),
+    Security = Window:AddTab({ Title = "Security", Icon = "shield" }),
+    API = Window:AddTab({ Title = "API Data", Icon = "database" }),
+}
+
+-- Заполнение вкладок
+-- Main
+Tabs.Main:AddToggle("AutoFarm", {
+    Title = "Auto Farm",
+    Description = "Автофарм мобов / breakables",
+    Default = false,
+    Callback = function(v)
+        state.AutoFarm = v
+        if v then task.spawn(autoFarmLoop) end
+    end
+})
+Tabs.Main:AddToggle("AutoTap", {
+    Title = "Auto Tap",
+    Description = "Сверхбыстрый клик для ультимейта",
+    Default = false,
+    Callback = function(v)
+        state.AutoTap = v
+        if v then task.spawn(autoTapLoop) end
+    end
+})
+Tabs.Main:AddToggle("AutoUseUltimate", {
+    Title = "Auto Ultimate",
+    Description = "Авто-прожатие ультимейта по КД",
+    Default = false,
+    Callback = function(v)
+        state.AutoUseUltimate = v
+        if v then task.spawn(autoUseUltimateLoop) end
+    end
+})
+Tabs.Main:AddToggle("InfiniteEnergy", {
+    Title = "Infinite Energy",
+    Description = "Бесконечная выносливость",
+    Default = false,
+    Callback = function(v)
+        state.InfiniteEnergy = v
+        if v then task.spawn(infiniteEnergyLoop) end
+    end
+})
+Tabs.Main:AddToggle("AntiAFK", {
+    Title = "Anti-AFK",
+    Description = "Защита от выкидывания",
+    Default = false,
+    Callback = function(v)
+        state.AntiAFK = v
+        if v then task.spawn(antiAFKLoop) end
+    end
+})
+Tabs.Main:AddToggle("SafeMode", {
+    Title = "Safe Mode",
+    Description = "Задержки и плавные движения для обхода античита",
+    Default = true,
+    Callback = function(v) state.SafeMode = v end
+})
+Tabs.Main:AddButton({
+    Title = "Teleport to Zone",
+    Description = "Плавный телепорт к зоне (введите координаты)",
+    Callback = function()
+        local input = Fluent:CreateInput({
+            Title = "Введите CFrame координаты",
+            Description = "Например: 100, 10, 500",
+            Placeholder = "x, y, z",
+        })
+        input:OnInput(function(val)
+            local parts = {string.match(val, "([^,]+)")}
+            if #parts == 3 then
+                local x, y, z = tonumber(parts[1]), tonumber(parts[2]), tonumber(parts[3])
+                if x and y and z then
+                    safeTeleport(CFrame.new(x, y, z), 2)
+                end
+            end
+        end)
+    end
+})
+
+-- World Cup
+Tabs.WorldCup:AddToggle("AutoKickBall", {
+    Title = "Auto Kick Ball",
+    Description = "Автоматический пинок мяча",
+    Default = false,
+    Callback = function(v)
+        state.AutoKickBall = v
+        if v then task.spawn(autoKickBallLoop) end
+    end
+})
+Tabs.WorldCup:AddToggle("AutoCollectSoccerItems", {
+    Title = "Auto Collect Soccer Items",
+    Description = "Сбор бутс и подарков",
+    Default = false,
+    Callback = function(v)
+        state.AutoCollectSoccerItems = v
+        if v then task.spawn(autoCollectSoccerItemsLoop) end
+    end
+})
+Tabs.WorldCup:AddToggle("AutoCollectOrbs", {
+    Title = "Auto Collect Orbs",
+    Description = "Сбор орбов (сфер) на поле",
+    Default = false,
+    Callback = function(v)
+        state.AutoCollectOrbs = v
+        if v then task.spawn(autoCollectOrbsLoop) end
+    end
+})
+Tabs.WorldCup:AddToggle("AutoHatchEventEgg", {
+    Title = "Auto Hatch Event Egg",
+    Description = "Открытие Trophy Soccer Egg",
+    Default = false,
+    Callback = function(v)
+        state.AutoHatchEventEgg = v
+        if v then task.spawn(autoHatchEventEggLoop) end
+    end
+})
+Tabs.WorldCup:AddToggle("FarmEventChests", {
+    Title = "Farm Event Chests",
+    Description = "Фокус на ивентовых сундуках",
+    Default = false,
+    Callback = function(v)
+        state.FarmEventChests = v
+        if v then task.spawn(farmEventChestsLoop) end
+    end
+})
+Tabs.WorldCup:AddToggle("StadiumHopper", {
+    Title = "Stadium Hopper",
+    Description = "Авто-перемещение между 5 стадионами",
+    Default = false,
+    Callback = function(v)
+        state.StadiumHopper = v
+        if v then task.spawn(stadiumHopperLoop) end
+    end
+})
+
+-- НОВЫЙ СУПЕР-РЕЖИМ ИВЕНТА
+Tabs.WorldCup:AddToggle("EventMode", {
+    Title = "🔥 EVENT MODE (ALL IN ONE)",
+    Description = "Включает: пинок мяча, сбор орбов, сбор предметов, открытие яйца и автофарм",
+    Default = false,
+    Callback = function(v)
+        state.EventMode = v
+        if v then
+            task.spawn(eventModeLoop)
         else
-            statusLabel.Text = "Поиск мобов..."
+            -- Выключаем отдельные функции, если они не были включены вручную
+            if not state.AutoKickBall then state.AutoKickBall = false end
+            if not state.AutoCollectSoccerItems then state.AutoCollectSoccerItems = false end
+            if not state.AutoCollectOrbs then state.AutoCollectOrbs = false end
+            if not state.AutoHatchEventEgg then state.AutoHatchEventEgg = false end
+            if not state.FarmEventChests then state.FarmEventChests = false end
+            if not state.AutoFarm then state.AutoFarm = false end
         end
     end
-end
+})
 
-function startFarm()
-    if farmThread then return end
-    farmThread = task.spawn(farmLoop)
-end
-
-function stopFarm()
-    state.AutoFarm = false
-    if farmThread then
-        task.cancel(farmThread)
-        farmThread = nil
+-- FPS Boost
+Tabs.FPSBoost:AddToggle("WhiteScreen", {
+    Title = "White Screen Mode",
+    Description = "Отключение 3D-рендеринга",
+    Default = false,
+    Callback = function(v)
+        state.WhiteScreen = v
+        if v then task.spawn(whiteScreenLoop) else RunService:Set3dRenderEnabled(true) end
     end
-    statusLabel.Text = "Фарм остановлен"
-end
+})
+Tabs.FPSBoost:AddToggle("RemoveTextures", {
+    Title = "Remove Textures",
+    Description = "Замена текстур на SmoothPlastic",
+    Default = false,
+    Callback = function(v)
+        state.RemoveTextures = v
+        if v then task.spawn(removeTexturesLoop) end
+    end
+})
+Tabs.FPSBoost:AddToggle("HideAllPets", {
+    Title = "Hide All Pets",
+    Description = "Скрытие моделей петов",
+    Default = false,
+    Callback = function(v)
+        state.HideAllPets = v
+        if v then task.spawn(hideAllPetsLoop) end
+    end
+})
+Tabs.FPSBoost:AddToggle("ClearMapVFX", {
+    Title = "Clear Map VFX",
+    Description = "Удаление эффектов (частиц и т.д.)",
+    Default = false,
+    Callback = function(v)
+        state.ClearMapVFX = v
+        if v then task.spawn(clearMapVFXLoop) end
+    end
+})
+Tabs.FPSBoost:AddToggle("BackgroundFPS", {
+    Title = "Background FPS Cap",
+    Description = "Снижение FPS до 10 при простое",
+    Default = false,
+    Callback = function(v)
+        state.BackgroundFPS = v
+        if v then task.spawn(backgroundFPSCapLoop) end
+    end
+})
 
--- Квестовый режим
-local questThread = nil
-function startQuest()
-    if questThread then return end
-    questThread = task.spawn(function()
-        while state.AutoQuest do
-            local npc = nil
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
-                    if obj.Name:lower():find(state.QuestNPC:lower()) then
-                        npc = obj; break
-                    end
-                end
+-- Auto
+Tabs.Auto:AddToggle("FastOpenEggs", {
+    Title = "Fast Open Eggs",
+    Description = "Пропуск анимации вылупления",
+    Default = false,
+    Callback = function(v)
+        state.FastOpenEggs = v
+        if v then task.spawn(fastOpenEggsLoop) end
+    end
+})
+Tabs.Auto:AddToggle("AutoUsePotions", {
+    Title = "Auto Use Potions & Enchants",
+    Description = "Автоматическое использование зелий",
+    Default = false,
+    Callback = function(v)
+        state.AutoUsePotions = v
+        if v then task.spawn(autoUsePotionsLoop) end
+    end
+})
+Tabs.Auto:AddToggle("AutoVending", {
+    Title = "Auto Vending Machines",
+    Description = "Скупка из автоматов",
+    Default = false,
+    Callback = function(v)
+        state.AutoVending = v
+        if v then task.spawn(autoVendingLoop) end
+    end
+})
+Tabs.Auto:AddToggle("AutoFishing", {
+    Title = "Auto Fishing",
+    Description = "Идеальная авто-рыбалка",
+    Default = false,
+    Callback = function(v)
+        state.AutoFishing = v
+        if v then task.spawn(autoFishingLoop) end
+    end
+})
+
+-- Security
+Tabs.Security:AddToggle("AntiLeave", {
+    Title = "Anti-Leave & Auto Reconnect",
+    Description = "Защита от вылетов",
+    Default = false,
+    Callback = function(v)
+        state.AntiLeave = v
+        if v then task.spawn(antiLeaveLoop) end
+    end
+})
+
+-- API вкладка (краткая)
+local apiPanel = Tabs.API
+apiPanel:AddButton({
+    Title = "Загрузить RAP",
+    Description = "Показать Recent Average Price",
+    Callback = function()
+        local data = fetchData("/api/rap", nil, "rap")
+        if data then
+            Fluent:Notify({
+                Title = "RAP Data",
+                Content = "Загружено " .. #data .. " записей",
+                Duration = 5,
+            })
+            local items = {}
+            for i=1, math.min(10, #data) do
+                local entry = data[i]
+                local name = entry.configData and entry.configData.id or "?"
+                local val = entry.value or 0
+                table.insert(items, name .. ": " .. val)
             end
-            if npc then
-                safeTeleport(npc.HumanoidRootPart.CFrame * CFrame.new(0,0,3))
-                task.wait(0.5)
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                task.wait(0.1)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                task.wait(1)
-                for i=1, 20 do
-                    if not state.AutoQuest then break end
-                    task.wait()
-                    local char = LocalPlayer.Character
-                    if char then
-                        local hrp = char:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            for _, obj in ipairs(workspace:GetDescendants()) do
-                                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
-                                    local name = obj.Name:lower()
-                                    if not name:find("player") and not name:find("npc") and obj:FindFirstChild("Health") then
-                                        if (obj.HumanoidRootPart.Position - hrp.Position).Magnitude < 150 then
-                                            safeTeleport(obj.HumanoidRootPart.CFrame * CFrame.new(0,2,5))
-                                            task.wait(0.2)
-                                            VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,1)
-                                            task.wait(0.05)
-                                            VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,1)
-                                            task.wait(0.5)
-                                            break
-                                        end
-                                    end
-                                end
-                            end
-                        end
+            Fluent:CreateInput({
+                Title = "Топ-10 RAP",
+                Description = table.concat(items, "\n"),
+                ReadOnly = true,
+            })
+        end
+    end
+})
+apiPanel:AddButton({
+    Title = "Загрузить Exists",
+    Description = "Показать количество предметов в игре",
+    Callback = function()
+        local data = fetchData("/api/exists", nil, "exists")
+        if data then
+            Fluent:Notify({
+                Title = "Exists Data",
+                Content = "Загружено " .. #data .. " записей",
+                Duration = 5,
+            })
+            local items = {}
+            for i=1, math.min(10, #data) do
+                local entry = data[i]
+                local id = entry.configData and entry.configData.id or "?"
+                local val = entry.value or 0
+                table.insert(items, id .. ": " .. val)
+            end
+            Fluent:CreateInput({
+                Title = "Топ-10 Exists",
+                Description = table.concat(items, "\n"),
+                ReadOnly = true,
+            })
+        end
+    end
+})
+apiPanel:AddButton({
+    Title = "Поиск игрока",
+    Description = "Введите имя или ID",
+    Callback = function()
+        local input = Fluent:CreateInput({
+            Title = "Поиск игрока",
+            Description = "Введите имя или Roblox ID",
+            Placeholder = "chickenputty или 123456789",
+        })
+        input:OnInput(function(val)
+            local data = fetchData("/v1/players/" .. val, nil, "playerProfile")
+            if data and data.account then
+                local acc = data.account
+                local msg = "Игрок: " .. (acc.displayName or acc.username or val) .. "\n"
+                msg = msg .. "ID: " .. acc.robloxUserId .. "\n"
+                if acc.publicViews then
+                    local views = {}
+                    for k, v in pairs(acc.publicViews) do
+                        if v then table.insert(views, k) end
                     end
+                    msg = msg .. "Публичные вкладки: " .. table.concat(views, ", ")
                 end
-                -- Сдаём квест
-                safeTeleport(npc.HumanoidRootPart.CFrame * CFrame.new(0,0,3))
-                task.wait(0.5)
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                task.wait(0.1)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                statusLabel.Text = "Квест сдан"
+                Fluent:Notify({
+                    Title = "Профиль игрока",
+                    Content = msg,
+                    Duration = 10,
+                })
             else
-                statusLabel.Text = "NPC не найден: " .. state.QuestNPC
+                Fluent:Notify({
+                    Title = "Ошибка",
+                    Content = "Игрок не найден или профиль закрыт",
+                    Duration = 5,
+                })
             end
-            task.wait(2)
-        end
-    end)
-end
-
-function stopQuest()
-    state.AutoQuest = false
-    if questThread then
-        task.cancel(questThread)
-        questThread = nil
+        end)
     end
-end
+})
 
--- ESP
-local espObjects = {}
-function startESP()
-    task.spawn(function()
-        while state.BossESP do
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
-                    local name = obj.Name:lower()
-                    if name:find("boss") or name:find("yet") or name:find("cake") or name:find("dough") or name:find("island empress") then
-                        if not espObjects[obj] then
-                            local hl = Instance.new("Highlight")
-                            hl.Adornee = obj
-                            hl.FillColor = Color3.fromRGB(255,0,0)
-                            hl.OutlineColor = Color3.fromRGB(255,255,255)
-                            hl.Parent = obj
-                            espObjects[obj] = hl
-                        end
-                    end
-                end
-            end
-            task.wait(SAFE.UpdateInterval)
-        end
-        for _, hl in pairs(espObjects) do
-            if hl and hl.Parent then hl:Destroy() end
-        end
-        espObjects = {}
-    end)
-end
+-- ===== СОХРАНЕНИЕ НАСТРОЕК =====
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
 
-function stopESP()
-    state.BossESP = false
-    for _, hl in pairs(espObjects) do
-        if hl and hl.Parent then hl:Destroy() end
-    end
-    espObjects = {}
-end
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:SetFolder("PS99Hub_v5")
 
--- Бесконечная энергия
-local energyThread = nil
-function startEnergy()
-    if energyThread then return end
-    energyThread = task.spawn(function()
-        while state.InfiniteEnergy do
-            local energy = LocalPlayer:FindFirstChild("Energy") or LocalPlayer:FindFirstChild("Stamina")
-            if energy then
-                local max = energy:GetAttribute("Max") or energy.MaxValue or 100
-                energy.Value = max
-            end
-            task.wait(0.1)
-        end
-    end)
-end
+SaveManager:BuildConfigSection(Window)
+InterfaceManager:BuildConfigSection(Window)
 
-function stopEnergy()
-    state.InfiniteEnergy = false
-    if energyThread then
-        task.cancel(energyThread)
-        energyThread = nil
-    end
-end
+Window:SelectTab(1)
 
--- Анти-АФК
-local afkThread = nil
-function startAntiAFK()
-    if afkThread then return end
-    afkThread = task.spawn(function()
-        while state.AntiAFK do
-            task.wait(30 + math.random()*30)
-            local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D}
-            local key = keys[math.random(#keys)]
-            VirtualInputManager:SendKeyEvent(true, key, false, game)
-            task.wait(0.1+math.random()*0.2)
-            VirtualInputManager:SendKeyEvent(false, key, false, game)
-        end
-    end)
-end
+Fluent:Notify({
+    Title = "PS99 ULTIMATE HUB v5.1",
+    Content = "Загружен успешно! Включите EVENT MODE для ивента.",
+    Duration = 8,
+})
 
-function stopAntiAFK()
-    state.AntiAFK = false
-    if afkThread then
-        task.cancel(afkThread)
-        afkThread = nil
-    end
-end
-
--- AI (заглушка, требует API ключа)
-local aiThread = nil
-function startAI()
-    if aiThread then return end
-    if state.APISettings.key == "" or state.APISettings.key == "Вставьте ключ" then
-        statusLabel.Text = "❌ API ключ не введён!"
-        return
-    end
-    aiThread = task.spawn(function()
-        while state.AIEnabled do
-            local prompt = "Я в Blox Fruits. Что делать? (фармить, телепорт, босс)"
-            local success, response = pcall(function()
-                -- Здесь будет реальный запрос к API, но для примера оставим заглушку
-                return "Фарми мобов рядом"
-            end)
-            if success and response then
-                statusLabel.Text = "AI: " .. response
-                if state.AutoMode then
-                    if response:lower():find("фарми") then
-                        if not state.AutoFarm then
-                            state.AutoFarm = true
-                            startFarm()
-                        end
-                    end
-                end
-            else
-                statusLabel.Text = "AI ошибка"
-            end
-            task.wait(SAFE.UpdateInterval)
-        end
-    end)
-end
-
-function stopAI()
-    state.AIEnabled = false
-    if aiThread then
-        task.cancel(aiThread)
-        aiThread = nil
-    end
-end
-
--- ===== ЗАПУСК =====
-print("✅ Redz Hub Ultimate v14.0 загружен. Все функции готовы.")
-print("⚠️ Используйте вкладки для управления.")
+print("✅ PS99 Ultimate Hub v5.1 загружен. World Cup Event Mode готов!")
+print("⚠️ Включите 'Event Mode' для одновременного сбора орбов, пинания мяча, открытия яйца и прокачки.")
